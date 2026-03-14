@@ -645,7 +645,7 @@ var DigestAdminPage={
 
 app().initializers.add("resofire-digest-mail",function(){
   var style=document.createElement("style");
-  style.textContent=".Select-input.FormControl{line-height:1.4 !important;padding-bottom:8px !important;height:auto !important;} .ExtensionPage .Form>.Form-group>.Button--primary{display:none !important;}";
+  style.textContent=".Select-input.FormControl{line-height:1.4 !important;padding-bottom:8px !important;height:auto !important;}";
   document.head.appendChild(style);
   app().extensionData.for("resofire-digest-mail").registerSetting(function(){return m(DigestAdminPage);},100);
 });
