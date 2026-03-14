@@ -36,7 +36,7 @@ resofire-digest-mail:
       queue_delay_label: "Job delay (seconds)"
       queue_delay_help: "Seconds before queued jobs become available to workers (default 0). In window mode this is rarely needed — the window itself spreads load across time. Only useful if using the two-phase digest:enqueue command on very large forums."
       queue_tries_label: "Max retry attempts"
-      queue_tries_help: "How many times a failed digest job will be retried before being moved to failed_jobs (default 3). Retries use exponential backoff: 30s, 60s, 120s."
+      queue_tries_help: "How many times a failed digest job will be retried before being moved to the failed jobs table (default 3). Retries use exponential backoff: 30s, 60s, 120s. Note: if you have blomstra/database-queue installed, it has its own Retries setting — the lower of the two values will effectively apply. Recommended to set both extension settings to the same value."
       queue_name_label: "Queue name"
       queue_name_help: "The named queue digest jobs are pushed onto. Must match the --queue argument in your queue:work cron. Default: digest."
       limit_members_label: "New Members — max items"
