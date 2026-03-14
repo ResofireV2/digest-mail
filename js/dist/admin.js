@@ -64,7 +64,7 @@ var FrequencyToggle={
 
 var NumberSetting={
   oninit:function(vnode){vnode.state.value=getSettingVal(vnode.attrs.settingKey,"");vnode.state.saving=false;vnode.state.saved=false;},
-  save:function(vnode){if(vnode.state.saving)return;vnode.state.saving=true;saveSetting(vnode.attrs.settingKey,String(vnode.state.value)).then(function(){vnode.state.saving=false;vnode.state.saved=true;setTimeout(function(){vnode.state.saved=false;m.redraw();},1500);m.redraw();}).catch(function(){vnode.state.saving=false;m.redraw();});},
+  save:function(vnode){if(vnode.state.saving)return;vnode.state.saving=true;saveSetting(vnode.attrs.settingKey,String(vnode.state.value)).then(function(){vnode.state.saving=false;vnode.state.saved=true;setTimeout(function(){vnode.state.saved=false;m.redraw();},5000);m.redraw();}).catch(function(){vnode.state.saving=false;m.redraw();});},
   view:function(vnode){var a=vnode.attrs;var s=vnode.state;return m("div",{className:"Form-group",style:"margin-bottom:20px;"},m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},a.label),a.help?m("p",{className:"helpText",style:"margin-bottom:6px;"},a.help):null,m("div",{style:"display:flex;align-items:center;gap:8px;"},m("input",{className:"FormControl",type:"number",min:a.min,max:a.max,step:a.step||1,value:s.value,style:"width:100px;",oninput:function(e){s.value=e.target.value;s.saved=false;},onblur:function(){NumberSetting.save(vnode);}}),s.saved?m("span",{style:"font-size:12px;color:#16a34a;"},"\u2713 Saved"):null));}
 };
 
@@ -275,7 +275,7 @@ var DigestOrderTab={
     vnode.state.order=order;vnode.state.saved=false;vnode.state.saving=true;
     saveSetting("resofire-digest-mail.section_order",JSON.stringify(order)).then(function(){
       vnode.state.saving=false;vnode.state.saved=true;
-      setTimeout(function(){vnode.state.saved=false;m.redraw();},1500);
+      setTimeout(function(){vnode.state.saved=false;m.redraw();},5000);
       m.redraw();
     });
   },
@@ -469,11 +469,11 @@ var ServerTab={
           m("div",{style:"display:flex;gap:14px;padding:18px 20px;border-radius:8px;background:#fef3c7;border:1px solid #f59e0b;margin-bottom:0;"},
             m("div",{style:"font-size:24px;flex-shrink:0;line-height:1.3;"},"\u26a0\ufe0f"),
             m("div",{style:"flex:1;min-width:0;"},
-              m("div",{style:"font-size:14px;font-weight:700;color:#92400e;margin-bottom:8px;"},"Sync Queue Driver Detected \u2014 Action Required"),
+              m("div",{style:"font-size:14px;font-weight:700;color:#92400e;margin-bottom:8px;"},"Queue Driver Warning"),
               m("p",{style:"margin:0 0 10px;font-size:13px;color:#78350f;line-height:1.6;"},
-                "Your forum is using the ",m("strong",null,"sync")," queue driver, which processes jobs inline during the web request rather than in the background. ",
-                "This works for tiny test forums but will cause timeouts and failures as your subscriber list grows. ",
-                "Install ",m("strong",null,"blomstra/database-queue")," and add the worker cron below to enable background processing."
+                "By default, Flarum uses the ",m("strong",null,"sync")," queue driver, which processes jobs during the web request rather than in the background. ",
+                "For this extension to work reliably, you should install ",m("strong",null,"blomstra/database-queue")," and configure a queue worker using the cron lines below. ",
+                "Without it, sending digests to more than a small number of subscribers will cause slow page loads, timeouts, or failures."
               ),
               m("div",{style:"font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;"},"In practice:"),
               m("ul",{style:"margin:0;padding-left:20px;"},
@@ -647,7 +647,7 @@ app().initializers.add("resofire-digest-mail",function(){
   var style=document.createElement("style");
   style.textContent=".Select-input.FormControl{line-height:1.4 !important;padding-bottom:8px !important;height:auto !important;}";
   document.head.appendChild(style);
-  app().extensionData.for("resofire-digest-mail").registerSetting(function(){return m(DigestAdminPage);},100);
+  app().extensionData.for("resofire-digest-mail").registerPage(DigestAdminPage);
 });
 
 })(),module.exports=o})();
