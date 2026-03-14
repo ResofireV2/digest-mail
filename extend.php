@@ -205,6 +205,8 @@ return [
         ->default('resofire-digest-mail.allow_monthly',      '1')
         ->default('resofire-digest-mail.timezone',           'UTC')
         ->default('resofire-digest-mail.send_hour',          '8')
+        ->default('resofire-digest-mail.send_window_start',  '8')
+        ->default('resofire-digest-mail.send_window_end',    '8')
         ->default('resofire-digest-mail.weekly_day',         '1')
         ->default('resofire-digest-mail.monthly_day',        '1'),
 

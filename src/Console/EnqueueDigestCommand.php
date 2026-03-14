@@ -5,7 +5,6 @@ namespace Resofire\DigestMail\Console;
 use Resofire\DigestMail\DigestQuery;
 use Resofire\DigestMail\DigestMailer;
 use Resofire\DigestMail\Job\SendDigestJob;
-use Resofire\DigestMail\Token\UnsubscribeTokenGenerator;
 use Carbon\Carbon;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
@@ -55,7 +54,6 @@ class EnqueueDigestCommand extends Command
         private SettingsRepositoryInterface $settings,
         private DigestQuery                 $query,
         private DigestMailer                $mailer,
-        private UnsubscribeTokenGenerator   $tokenGenerator,
         private Queue                       $queue,
         private Cache                       $cache,
     ) {
@@ -79,7 +77,7 @@ class EnqueueDigestCommand extends Command
             ? (int) $this->option('delay')
             : (int) $this->settings->get('resofire-digest-mail.queue_delay', 0);
 
-        $chunkSize = max(50, min(500,
+        $chunkSize = max(50, min(10000,
             (int) $this->settings->get('resofire-digest-mail.queue_chunk_size', 200)
         ));
 
@@ -97,8 +95,8 @@ class EnqueueDigestCommand extends Command
         // Build and cache shared data now, before jobs are created.
         // Workers will re-use this cache rather than re-querying.
         $sharedData = null;
+        $cacheKey   = "resofire_digest_shared_{$frequency}_{$since->timestamp}";
         if (!$isDryRun) {
-            $cacheKey   = "resofire_digest_shared_{$frequency}_{$since->timestamp}";
             $sharedData = $this->cache->remember(
                 $cacheKey,
                 self::SHARED_CACHE_TTL,
@@ -132,28 +130,24 @@ class EnqueueDigestCommand extends Command
                   ->orWhere('digest_last_sent_at', '<', $cutoff);
             })
             ->chunk($chunkSize, function (Collection $users) use (
-                $frequency, $since, $isDryRun, $sharedData,
+                $frequency, $since, $isDryRun, $sharedData, $cacheKey,
                 $queueName, $delaySecs, $tries, &$enqueued, &$skipped
             ) {
                 foreach ($users as $user) {
-                    $theme   = $this->mailer->resolveTheme($user);
-                    $content = $this->query->buildForUser(
-                        $user, $since, $frequency, $theme, $sharedData
-                    );
-
-                    if ($content->isEmpty()) {
-                        $skipped++;
-                        continue;
-                    }
-
+                    // Dry-run: build content just to count eligible users.
                     if ($isDryRun) {
-                        $enqueued++;
+                        $theme   = $this->mailer->resolveTheme($user);
+                        $content = $this->query->buildForUser(
+                            $user, $since, $frequency, $theme, $sharedData
+                        );
+                        if ($content->isEmpty()) { $skipped++; } else { $enqueued++; }
                         continue;
                     }
 
-                    $token = $this->tokenGenerator->getOrCreate($user);
+                    // Real enqueue: push lightweight job — worker builds content at send time.
+                    $theme = $this->mailer->resolveTheme($user);
 
-                    $job = (new SendDigestJob($user, $content, $token))
+                    $job = (new SendDigestJob($user, $frequency, $cacheKey, $since, $theme))
                         ->onQueue($queueName)
                         ->tries($tries)
                         ->backoff([30, 60, 120]);

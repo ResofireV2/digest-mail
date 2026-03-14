@@ -6,7 +6,6 @@ use Resofire\DigestMail\DigestContent;
 use Resofire\DigestMail\DigestQuery;
 use Resofire\DigestMail\DigestMailer;
 use Resofire\DigestMail\Job\SendDigestJob;
-use Resofire\DigestMail\Token\UnsubscribeTokenGenerator;
 use Carbon\Carbon;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
@@ -49,13 +48,13 @@ class SendDigestCommand extends Command
     protected $description = 'Send digest emails to subscribed forum members.';
 
     private const FREQUENCIES      = ['daily', 'weekly', 'monthly'];
-    private const SHARED_CACHE_TTL = 7200; // 2 hours
+    private const SHARED_CACHE_TTL    = 7200; // 2 hours
+    private const WINDOW_COMPLETE_TTL = 86400; // 24 hours — cleared at midnight
 
     public function __construct(
         private SettingsRepositoryInterface $settings,
         private DigestQuery                 $query,
         private DigestMailer                $mailer,
-        private UnsubscribeTokenGenerator   $tokenGenerator,
         private Queue                       $queue,
         private ConnectionInterface         $db,
         private Cache                       $cache,
@@ -110,19 +109,74 @@ class SendDigestCommand extends Command
 
     private function dueFrequencies(): array
     {
-        $timezone   = $this->settings->get('resofire-digest-mail.timezone', 'UTC');
-        $now        = Carbon::now($timezone);
-        $sendHour   = (int) $this->settings->get('resofire-digest-mail.send_hour',   8);
-        $weeklyDay  = (int) $this->settings->get('resofire-digest-mail.weekly_day',  1);
-        $monthlyDay = (int) $this->settings->get('resofire-digest-mail.monthly_day', 1);
+        $timezone    = $this->settings->get('resofire-digest-mail.timezone', 'UTC');
+        $now         = Carbon::now($timezone);
+        $weeklyDay   = (int) $this->settings->get('resofire-digest-mail.weekly_day',  1);
+        $monthlyDay  = (int) $this->settings->get('resofire-digest-mail.monthly_day', 1);
 
-        if ($now->hour !== $sendHour) return [];
+        // Window mode: send_window_start and send_window_end define a range of
+        // hours during which the scheduler fires repeatedly, dispatching one
+        // chunk per minute until all subscribers are processed.
+        //
+        // Single-hour mode (legacy): if send_window_end is not set or equals
+        // send_window_start, behave exactly as before — fire once at that hour.
+        $windowStart = (int) $this->settings->get('resofire-digest-mail.send_window_start',
+            $this->settings->get('resofire-digest-mail.send_hour', 8));
+        $windowEnd   = (int) $this->settings->get('resofire-digest-mail.send_window_end', $windowStart);
 
-        $due = ['daily'];
-        if ($now->dayOfWeek === $weeklyDay) $due[] = 'weekly';
-        if ($now->day === $monthlyDay)      $due[] = 'monthly';
+        $inWindow = ($windowEnd > $windowStart)
+            ? ($now->hour >= $windowStart && $now->hour < $windowEnd)
+            : ($now->hour === $windowStart);
+
+        if (!$inWindow) return [];
+
+        $due = [];
+
+        // Daily — due if within window and not yet fully dispatched today.
+        if (!$this->isWindowComplete('daily', $now)) {
+            $due[] = 'daily';
+        }
+
+        // Weekly — only on the configured day.
+        if ($now->dayOfWeek === $weeklyDay && !$this->isWindowComplete('weekly', $now)) {
+            $due[] = 'weekly';
+        }
+
+        // Monthly — only on the configured day-of-month.
+        if ($now->day === $monthlyDay && !$this->isWindowComplete('monthly', $now)) {
+            $due[] = 'monthly';
+        }
 
         return $due;
+    }
+
+    /**
+     * Returns true if this frequency has already been fully dispatched
+     * during the current window for today's date in the forum timezone.
+     */
+    private function isWindowComplete(string $frequency, \Carbon\Carbon $now): bool
+    {
+        $key = $this->windowCompleteKey($frequency, $now);
+        return $this->cache->has($key);
+    }
+
+    /**
+     * Mark a frequency as fully dispatched for today's window.
+     * TTL is 24 hours so it auto-clears at the next day's window.
+     */
+    private function markWindowComplete(string $frequency, \Carbon\Carbon $now): void
+    {
+        $key = $this->windowCompleteKey($frequency, $now);
+        $this->cache->put($key, true, self::WINDOW_COMPLETE_TTL);
+    }
+
+    /**
+     * Cache key for the window-complete flag.
+     * Scoped to frequency + calendar date in the forum timezone.
+     */
+    private function windowCompleteKey(string $frequency, \Carbon\Carbon $now): string
+    {
+        return 'resofire_digest_window_complete_' . $frequency . '_' . $now->toDateString();
     }
 
     // -------------------------------------------------------------------------
@@ -144,7 +198,7 @@ class SendDigestCommand extends Command
             ? (int) $this->option('delay')
             : (int) $this->settings->get('resofire-digest-mail.queue_delay', 0);
 
-        $chunkSize = max(50, min(500,
+        $chunkSize = max(50, min(10000,
             (int) $this->settings->get('resofire-digest-mail.queue_chunk_size', 200)
         ));
 
@@ -157,8 +211,8 @@ class SendDigestCommand extends Command
         // Build shared data once and cache it for this frequency run.
         // All per-user jobs will read from this cache instead of re-querying.
         $sharedData = null;
+        $cacheKey   = "resofire_digest_shared_{$frequency}_{$since->timestamp}";
         if (!$isDryRun) {
-            $cacheKey   = "resofire_digest_shared_{$frequency}_{$since->timestamp}";
             $sharedData = $this->cache->remember(
                 $cacheKey,
                 self::SHARED_CACHE_TTL,
@@ -188,44 +242,42 @@ class SendDigestCommand extends Command
         }
 
         $userQuery->chunk($chunkSize, function (Collection $users) use (
-            $frequency, $since, $isDryRun, $sharedData,
+            $frequency, $since, $isDryRun, $sharedData, $cacheKey,
             $queueName, $delaySecs, &$dispatched, &$skipped
         ) {
             foreach ($users as $user) {
-                $theme   = $this->mailer->resolveTheme($user);
-                $content = $this->query->buildForUser(
-                    $user, $since, $frequency, $theme, $sharedData
-                );
-
-                if ($content->isEmpty()) {
-                    $this->line("  [skip]     {$user->username} (#{$user->id}) — no content");
-                    $skipped++;
-                    continue;
-                }
-
+                // Dry-run: build content to summarise what would be sent.
                 if ($isDryRun) {
-                    $this->line("  [dry-run]  {$user->username} (#{$user->id}) — " . $this->contentSummary($content));
-                    $dispatched++;
+                    $theme   = $this->mailer->resolveTheme($user);
+                    $content = $this->query->buildForUser(
+                        $user, $since, $frequency, $theme, $sharedData
+                    );
+                    if ($content->isEmpty()) {
+                        $this->line("  [skip]     {$user->username} (#{$user->id}) — no content");
+                        $skipped++;
+                    } else {
+                        $this->line("  [dry-run]  {$user->username} (#{$user->id}) — " . $this->contentSummary($content));
+                        $dispatched++;
+                    }
                     continue;
                 }
 
-                $token = $this->tokenGenerator->getOrCreate($user);
+                // Real send: push a lightweight job — no DigestContent, no token.
+                // The worker builds content and generates the token at send time.
+                $theme = $this->mailer->resolveTheme($user);
 
-                // Build the job with queue name, retry count and exponential backoff.
-                $job = (new SendDigestJob($user, $content, $token))
+                $job = (new SendDigestJob($user, $frequency, $cacheKey, $since, $theme))
                     ->onQueue($queueName)
                     ->tries($this->jobTries())
                     ->backoff([30, 60, 120]);
 
-                // Delay makes jobs invisible to workers until available_at arrives.
-                // This lets the queue fill up before workers start consuming.
                 if ($delaySecs > 0) {
                     $job = $job->delay($delaySecs);
                 }
 
                 $this->queue->push($job);
 
-                // Stamp last sent now so the user isn't double-dispatched if
+                // Stamp last sent so the user isn't double-dispatched if
                 // the command re-runs within the same window.
                 User::where('id', $user->id)->update([
                     'digest_last_sent_at' => Carbon::now()->toDateTimeString(),
@@ -244,6 +296,31 @@ class SendDigestCommand extends Command
                 'skipped_count' => $skipped,
                 'sent_at'       => Carbon::now('UTC')->toDateTimeString(),
             ]);
+        }
+
+        // Window-complete check: if no eligible users remain for this frequency,
+        // mark it done so dueFrequencies() skips it for the rest of the window.
+        if (!$isDryRun) {
+            $timezone = $this->settings->get('resofire-digest-mail.timezone', 'UTC');
+            $now      = Carbon::now($timezone);
+            $cutoff   = $this->lastSentCutoff($frequency);
+
+            $remaining = User::query()
+                ->where('digest_frequency', $frequency)
+                ->where('is_email_confirmed', true)
+                ->where(function ($q) use ($cutoff) {
+                    $q->whereNull('digest_last_sent_at')
+                      ->orWhere('digest_last_sent_at', '<', $cutoff);
+                })
+                ->limit(1)
+                ->count();
+
+            if ($remaining === 0) {
+                $this->markWindowComplete($frequency, $now);
+                $this->line("  [window]   All '{$frequency}' subscribers dispatched. Window marked complete.");
+            } else {
+                $this->line("  [window]   {$remaining} '{$frequency}' subscriber(s) remaining — will continue next minute.");
+            }
         }
 
         return [$dispatched, $skipped];

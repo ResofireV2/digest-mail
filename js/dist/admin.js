@@ -71,14 +71,30 @@ var NumberSetting={
 var ScheduleSection={
   oninit:function(vnode){
     var savedTz=getSettingVal("resofire-digest-mail.timezone","America/Chicago");
-    var savedHour=getSettingVal("resofire-digest-mail.send_hour","18");
+    var savedStart=getSettingVal("resofire-digest-mail.send_window_start",
+                   getSettingVal("resofire-digest-mail.send_hour","8"));
+    var savedEnd=getSettingVal("resofire-digest-mail.send_window_end",savedStart);
     vnode.state.tz=savedTz;
-    vnode.state.utcHour=savedHour;
+    vnode.state.windowStart=String(savedStart);
+    vnode.state.windowEnd=String(savedEnd);
     vnode.state.saving=false;
   },
-  saveHour:function(vnode,utcHour){
-    vnode.state.utcHour=utcHour;
-    saveSetting("resofire-digest-mail.send_hour",String(utcHour));
+  saveStart:function(vnode,val){
+    vnode.state.windowStart=val;
+    saveSetting("resofire-digest-mail.send_window_start",val);
+    // Keep legacy send_hour in sync so existing code paths still work
+    saveSetting("resofire-digest-mail.send_hour",val);
+    // If end < start, snap end to start (single-hour mode)
+    if(parseInt(vnode.state.windowEnd,10)<parseInt(val,10)){
+      vnode.state.windowEnd=val;
+      saveSetting("resofire-digest-mail.send_window_end",val);
+    }
+    m.redraw();
+  },
+  saveEnd:function(vnode,val){
+    vnode.state.windowEnd=val;
+    saveSetting("resofire-digest-mail.send_window_end",val);
+    m.redraw();
   },
   saveTz:function(vnode,tz){
     vnode.state.tz=tz;
@@ -88,12 +104,15 @@ var ScheduleSection={
     var s=vnode.state;
     var tr=function(k){return app().translator.trans(k);};
     var hourOpts=buildHourOptions(s.tz);
-    var tzLabel=tzOffsetLabel(s.tz);
-    // Timezone options with current offset labels
     var tzOpts=TIMEZONES.map(function(z){
       return m("option",{value:z.tz,selected:s.tz===z.tz},tzOffsetLabel(z.tz)+" — "+z.label);
     });
+    var isWindow=parseInt(s.windowEnd,10)>parseInt(s.windowStart,10);
+    var windowSummary=isWindow
+      ?"Digest emails will go out gradually from "+hourOpts[s.windowStart]+" to "+hourOpts[s.windowEnd]+". Subscribers are emailed in batches — your server stays responsive and no single minute carries the full load."
+      :"All digest emails will begin sending at "+hourOpts[s.windowStart]+". Best for smaller forums with under 2,000 subscribers.";
     return m("div",null,
+      // Timezone
       m("div",{className:"Form-group",style:"margin-bottom:16px;"},
         m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},tr("resofire-digest-mail.admin.settings.timezone_label")),
         m("p",{className:"helpText",style:"margin-bottom:6px;"},tr("resofire-digest-mail.admin.settings.timezone_help")),
@@ -101,12 +120,28 @@ var ScheduleSection={
           onchange:function(e){ScheduleSection.saveTz(vnode,e.target.value);}
         },tzOpts)
       ),
-      m("div",{className:"Form-group",style:"margin-bottom:20px;"},
-        m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},tr("resofire-digest-mail.admin.settings.send_hour_label")),
-        m("p",{className:"helpText",style:"margin-bottom:6px;"},tr("resofire-digest-mail.admin.settings.send_hour_help")),
-        m("select",{className:"FormControl Select-input",value:s.utcHour,style:"max-width:260px;padding-bottom:8px;height:auto;line-height:1.4;",
-          onchange:function(e){ScheduleSection.saveHour(vnode,e.target.value);}
-        },Object.keys(hourOpts).map(function(k){return m("option",{value:k,selected:s.utcHour===k},hourOpts[k]);}))
+      // Window start
+      m("div",{className:"Form-group",style:"margin-bottom:12px;"},
+        m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},tr("resofire-digest-mail.admin.settings.send_window_start_label")),
+        m("p",{className:"helpText",style:"margin-bottom:6px;"},tr("resofire-digest-mail.admin.settings.send_window_start_help")),
+        m("select",{className:"FormControl Select-input",value:s.windowStart,style:"max-width:260px;padding-bottom:8px;height:auto;line-height:1.4;",
+          onchange:function(e){ScheduleSection.saveStart(vnode,e.target.value);}
+        },Object.keys(hourOpts).map(function(k){return m("option",{value:k,selected:s.windowStart===k},hourOpts[k]);}))
+      ),
+      // Window end
+      m("div",{className:"Form-group",style:"margin-bottom:16px;"},
+        m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},tr("resofire-digest-mail.admin.settings.send_window_end_label")),
+        m("p",{className:"helpText",style:"margin-bottom:6px;"},tr("resofire-digest-mail.admin.settings.send_window_end_help")),
+        m("select",{className:"FormControl Select-input",value:s.windowEnd,style:"max-width:260px;padding-bottom:8px;height:auto;line-height:1.4;",
+          onchange:function(e){ScheduleSection.saveEnd(vnode,e.target.value);}
+        },Object.keys(hourOpts).map(function(k){return m("option",{value:k,selected:s.windowEnd===k},hourOpts[k]);}))
+      ),
+      // Summary notice
+      m("div",{style:"padding:10px 14px;border-radius:8px;background:var(--control-bg);border-left:3px solid "+(isWindow?"#10b981":"var(--primary-color,#4f46e5)")+";margin-bottom:4px;"},
+        m("p",{style:"margin:0;font-size:13px;color:var(--muted-color);line-height:1.5;"},
+          m("strong",{style:"color:var(--heading-color,var(--text-color));"},isWindow?"Spread send: ":"Single send: "),
+          windowSummary
+        )
       )
     );
   }
@@ -418,16 +453,38 @@ var ServerTab={
       );
     };
     var code=function(t){return m("code",{style:"background:var(--body-bg);padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace;word-break:break-all;"},t);};
-    var tbl_head=["Forum Size","Chunk Size","Workers","Tries","Delay","Cron Strategy"];
+    var tbl_head=["Forum Size","Chunk Size","Workers","Tries","Send Mode","Cron Strategy"];
     var tbl_rows=[
-      ["100–500 members",  "100",  "1", "2", "0s",   "Single worker, stop-when-empty is fine"],
-      ["500–2,000",        "150",  "1", "3", "0s",   "Single worker, --max-time=55"],
-      ["2,000–5,000",      "200",  "2", "3", "0s",   "Two parallel workers, --max-time=55"],
-      ["5,000–15,000",     "200",  "3", "3", "300s", "Three workers + digest:enqueue 5 min early"],
-      ["15,000–50,000",    "150",  "5", "3", "600s", "Five workers + digest:enqueue 10 min early"],
-      ["50,000+",          "100",  "8", "3", "900s", "Consider Redis queue driver + Supervisor"],
+      ["100–500 members",   "200",   "1", "2", "Single hour",   "One worker, scheduler fires once at send hour"],
+      ["500–2,000",         "500",   "1", "3", "Single hour",   "One worker, --max-time=55"],
+      ["2,000–5,000",       "1000",  "2", "3", "1–2 hr window", "Two workers, window mode recommended"],
+      ["5,000–15,000",      "2000",  "3", "3", "2–3 hr window", "Three workers, window spans low-traffic hours"],
+      ["15,000–50,000",     "5000",  "5", "3", "2–4 hr window", "Five workers, overnight window recommended"],
+      ["50,000–100,000",    "7500",  "8", "3", "3–4 hr window", "Eight workers, overnight window"],
+      ["100,000+",          "10000", "10","3", "4+ hr window",  "Ten+ workers, maximum window, consider Redis + Supervisor"],
     ];
     return m("div",null,
+      // ── Sync Driver Warning ─────────────────────────────────────────────
+      m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:660px;margin:0 auto;"},
+        m("div",{style:"display:flex;gap:14px;padding:18px 20px;border-radius:8px;background:#fef3c7;border:1px solid #f59e0b;margin-bottom:0;"},
+          m("div",{style:"font-size:24px;flex-shrink:0;line-height:1.3;"},"⚠️"),
+          m("div",{style:"flex:1;min-width:0;"},
+            m("div",{style:"font-size:14px;font-weight:700;color:#92400e;margin-bottom:8px;"},"Sync Queue Driver Detected — Action Required"),
+            m("p",{style:"margin:0 0 10px;font-size:13px;color:#78350f;line-height:1.6;"},
+              "Your forum is using the ",m("strong",null,"sync")," queue driver, which processes jobs inline during the web request rather than in the background. ",
+              "This works for tiny test forums but will cause timeouts and failures as your subscriber list grows. ",
+              "Install ",m("strong",null,"blomstra/database-queue")," and add the worker cron below to enable background processing."
+            ),
+            m("div",{style:"font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;"},"In practice:"),
+            m("ul",{style:"margin:0;padding-left:20px;"},
+              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"Under ~50 subscribers")," — sync is fine, most shared hosts handle it without timeouts"),
+              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"50–200 subscribers")," — you'll start seeing slow post responses, occasional timeouts"),
+              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"200+ subscribers")," — sync will regularly timeout or exhaust memory on typical VPS hosting"),
+              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:0;line-height:1.5;"},m("strong",null,"500+ subscribers")," — sync is essentially broken; posts will fail or appear to hang")
+            )
+          )
+        )
+      )),
       // ── How the Queue Works ─────────────────────────────────────────────
       m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:660px;margin:0 auto;"},
         sh("How the Queue Works"),
@@ -440,17 +497,26 @@ var ServerTab={
         ),
         notice("📦","Shared data caching",
           m("div",null,
-            m("p",{style:"margin:0 0 8px;"},"Sections that are identical for every user — awards, leaderboard, pick\'em, gamepedia, stats — are built once per frequency run and stored in Laravel\'s cache for 2 hours. Each user\'s job reads from cache rather than re-querying the database."),
-            m("p",{style:"margin:0;"},"For a forum with 10,000 subscribers, this reduces database load by approximately 60,000 queries per send run.")
+            m("p",{style:"margin:0 0 8px;"},"Almost everything in the digest is identical for every subscriber — new discussions, hot discussions, new members, favorites, leaderboard, awards, pick'em, gamepedia, stats, and section order are all built once per frequency run and stored in Laravel's cache for 2 hours."),
+            m("p",{style:"margin:0;"},"The only per-user query is unread discussions. For 10,000 subscribers this means roughly 10,013 total DB queries instead of 100,000+.")
           ),
+          "#10b981"
+        ),
           "#10b981"
         ),
         notice("🔄","Retries and backoff",
           m("div",null,
             m("p",{style:"margin:0 0 8px;"},"If a job fails (e.g. the mail server is temporarily unavailable), it is automatically retried up to the configured number of times. Retries use exponential backoff: 30 seconds, then 60 seconds, then 120 seconds between attempts."),
-            m("p",{style:"margin:0;"},"Permanently failed jobs (exhausted all retries) land in your failed_jobs table (prefixed to match your forum). You can inspect and retry them manually with ",code("php flarum queue:retry all"),".")
+            m("p",{style:"margin:0;"},"Permanently failed jobs land in your failed_jobs table. Inspect and retry them with ",code("php flarum queue:retry all"),".")
           ),
           "#f59e0b"
+        ),
+        notice("🪟","Window mode",
+          m("div",null,
+            m("p",{style:"margin:0 0 8px;"},"Set a send window (e.g. 1 a.m.–5 a.m.) instead of a single hour in the Settings tab. The scheduler fires every minute within the window and dispatches one chunk of users per minute until all subscribers are processed or the window closes."),
+            m("p",{style:"margin:0;"},"This spreads DB load over time, prevents spikes, and requires no extra cron entries. The extension tracks progress automatically and stops when done.")
+          ),
+          "#6366f1"
         )
       )),
 
@@ -467,7 +533,7 @@ var ServerTab={
             })
           )
         ),
-        m(NumberSetting,{settingKey:"resofire-digest-mail.queue_chunk_size",min:50,max:500,label:tr("resofire-digest-mail.admin.settings.queue_chunk_size_label"),help:tr("resofire-digest-mail.admin.settings.queue_chunk_size_help")}),
+        m(NumberSetting,{settingKey:"resofire-digest-mail.queue_chunk_size",min:50,max:10000,label:tr("resofire-digest-mail.admin.settings.queue_chunk_size_label"),help:tr("resofire-digest-mail.admin.settings.queue_chunk_size_help")}),
         m(NumberSetting,{settingKey:"resofire-digest-mail.queue_delay",     min:0,max:3600,label:tr("resofire-digest-mail.admin.settings.queue_delay_label"),    help:tr("resofire-digest-mail.admin.settings.queue_delay_help")}),
         m(NumberSetting,{settingKey:"resofire-digest-mail.queue_tries",     min:1,max:10,  label:tr("resofire-digest-mail.admin.settings.queue_tries_label"),    help:tr("resofire-digest-mail.admin.settings.queue_tries_help")})
       )),
@@ -480,7 +546,7 @@ var ServerTab={
           "#f59e0b"
         ),
         m("p",{style:"margin:0 0 12px;font-size:13px;color:var(--muted-color);line-height:1.6;"},
-          "Replace ",code("/path/to/flarum")," with your forum\'s root directory (the folder containing ",code("flarum"),"). All three lines are required."
+          "Replace ",code("/path/to/flarum")," with your forum\'s root directory (the folder containing ",code("flarum"),"). Lines 1 and 2 are required. Line 3 (multiple workers) and line 4 (pre-population) are optional."
         ),
         // Scheduler
         m("div",{style:"margin-bottom:16px;"},
@@ -512,10 +578,10 @@ var ServerTab={
         m("div",{style:"margin-bottom:0;"},
           m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"4. Optional — Two-Phase Pre-Population"),
           m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
-            "# Run 10 minutes before your send hour to pre-build all jobs:\n50 13 * * * cd /path/to/flarum && php flarum digest:enqueue --frequency=daily --delay=600 >> /dev/null 2>&1"
+            "# Optional: pre-build jobs before the window opens (large forums only):\n50 12 * * * cd /path/to/flarum && php flarum digest:enqueue --frequency=daily --delay=600 >> /dev/null 2>&1"
           ),
           m("p",{style:"margin:6px 0 0;font-size:12px;color:var(--muted-color);"},
-            "Replace ",code("50 13")," with 10 minutes before your configured send hour. Workers pick up pre-built jobs immediately when the send window opens, with zero job-construction overhead."
+            "Replace ",code("50 12")," with 10 minutes before your window start. In window mode, This pre-populates the jobs table before workers start, eliminating first-minute construction overhead. Only meaningful for very large forums (50,000+) — smaller forums running window mode already handle pacing automatically."
           )
         )
       )),
