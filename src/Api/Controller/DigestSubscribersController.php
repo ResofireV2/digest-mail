@@ -4,6 +4,7 @@ namespace Resofire\DigestMail\Api\Controller;
 
 use Flarum\Http\RequestUtil;
 use Flarum\User\Exception\PermissionDeniedException;
+use Illuminate\Contracts\Filesystem\Factory;
 use Illuminate\Database\ConnectionInterface;
 use Laminas\Diactoros\Response\JsonResponse;
 use Psr\Http\Message\ResponseInterface;
@@ -41,6 +42,7 @@ class DigestSubscribersController implements RequestHandlerInterface
 
     public function __construct(
         private ConnectionInterface $db,
+        private Factory             $filesystem,
     ) {}
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -73,11 +75,21 @@ class DigestSubscribersController implements RequestHandlerInterface
             ->offset($offset)
             ->get();
 
-        $data = $rows->map(function ($row) {
+        $avatarDisk = $this->filesystem->disk('flarum-avatars');
+
+        $data = $rows->map(function ($row) use ($avatarDisk) {
+            // Flarum stores avatar_url as a bare filename when uploaded via the
+            // built-in uploader. Resolve it to a full URL the same way the
+            // User model's getAvatarUrlAttribute accessor does.
+            $avatarUrl = $row->avatar_url;
+            if ($avatarUrl && strpos($avatarUrl, '://') === false) {
+                $avatarUrl = $avatarDisk->url($avatarUrl);
+            }
+
             return [
                 'id'         => $row->id,
                 'username'   => $row->username,
-                'avatar_url' => $row->avatar_url,
+                'avatar_url' => $avatarUrl,
                 'last_sent'  => $row->digest_last_sent_at,
             ];
         })->values()->all();
