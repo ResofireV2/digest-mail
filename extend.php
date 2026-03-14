@@ -199,10 +199,14 @@ return [
         ->default('resofire-digest-mail.queue_chunk_size',   '200')
         ->default('resofire-digest-mail.queue_delay',        '0')
         ->default('resofire-digest-mail.queue_tries',        '3')
-        ->default('resofire-digest-mail.section_order',         '')
+        ->default('resofire-digest-mail.section_order',      '')
         ->default('resofire-digest-mail.allow_daily',        '0')
         ->default('resofire-digest-mail.allow_weekly',       '1')
-        ->default('resofire-digest-mail.allow_monthly',      '1'),
+        ->default('resofire-digest-mail.allow_monthly',      '1')
+        ->default('resofire-digest-mail.timezone',           'UTC')
+        ->default('resofire-digest-mail.send_hour',          '8')
+        ->default('resofire-digest-mail.weekly_day',         '1')
+        ->default('resofire-digest-mail.monthly_day',        '1'),
 
     // -------------------------------------------------------------------------
     // Persist digestFrequency via the existing PATCH /api/users/{id} endpoint
