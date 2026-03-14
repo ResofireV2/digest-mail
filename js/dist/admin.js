@@ -455,172 +455,168 @@ var ServerTab={
     var code=function(t){return m("code",{style:"background:var(--body-bg);padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace;word-break:break-all;"},t);};
     var tbl_head=["Forum Size","Chunk Size","Workers","Tries","Send Mode","Cron Strategy"];
     var tbl_rows=[
-      ["100–500 members",   "200",   "1", "2", "Single hour",   "One worker, scheduler fires once at send hour"],
-      ["500–2,000",         "500",   "1", "3", "Single hour",   "One worker, --max-time=55"],
-      ["2,000–5,000",       "1000",  "2", "3", "1–2 hr window", "Two workers, window mode recommended"],
-      ["5,000–15,000",      "2000",  "3", "3", "2–3 hr window", "Three workers, window spans low-traffic hours"],
-      ["15,000–50,000",     "5000",  "5", "3", "2–4 hr window", "Five workers, overnight window recommended"],
-      ["50,000–100,000",    "7500",  "8", "3", "3–4 hr window", "Eight workers, overnight window"],
+      ["100\u2013500 members",   "200",   "1", "2", "Single hour",   "One worker, scheduler fires once at send hour"],
+      ["500\u20132,000",         "500",   "1", "3", "Single hour",   "One worker, --max-time=55"],
+      ["2,000\u20135,000",       "1000",  "2", "3", "1\u20132 hr window", "Two workers, window mode recommended"],
+      ["5,000\u201315,000",      "2000",  "3", "3", "2\u20133 hr window", "Three workers, window spans low-traffic hours"],
+      ["15,000\u201350,000",     "5000",  "5", "3", "2\u20134 hr window", "Five workers, overnight window recommended"],
+      ["50,000\u2013100,000",    "7500",  "8", "3", "3\u20134 hr window", "Eight workers, overnight window"],
       ["100,000+",          "10000", "10","3", "4+ hr window",  "Ten+ workers, maximum window, consider Redis + Supervisor"],
     ];
     return m("div",null,
-      // ── Sync Driver Warning ─────────────────────────────────────────────
-      m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:660px;margin:0 auto;"},
-        m("div",{style:"display:flex;gap:14px;padding:18px 20px;border-radius:8px;background:#fef3c7;border:1px solid #f59e0b;margin-bottom:0;"},
-          m("div",{style:"font-size:24px;flex-shrink:0;line-height:1.3;"},"⚠️"),
-          m("div",{style:"flex:1;min-width:0;"},
-            m("div",{style:"font-size:14px;font-weight:700;color:#92400e;margin-bottom:8px;"},"Sync Queue Driver Detected — Action Required"),
-            m("p",{style:"margin:0 0 10px;font-size:13px;color:#78350f;line-height:1.6;"},
-              "Your forum is using the ",m("strong",null,"sync")," queue driver, which processes jobs inline during the web request rather than in the background. ",
-              "This works for tiny test forums but will cause timeouts and failures as your subscriber list grows. ",
-              "Install ",m("strong",null,"blomstra/database-queue")," and add the worker cron below to enable background processing."
-            ),
-            m("div",{style:"font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;"},"In practice:"),
-            m("ul",{style:"margin:0;padding-left:20px;"},
-              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"Under ~50 subscribers")," — sync is fine, most shared hosts handle it without timeouts"),
-              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"50–200 subscribers")," — you'll start seeing slow post responses, occasional timeouts"),
-              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"200+ subscribers")," — sync will regularly timeout or exhaust memory on typical VPS hosting"),
-              m("li",{style:"font-size:13px;color:#78350f;margin-bottom:0;line-height:1.5;"},m("strong",null,"500+ subscribers")," — sync is essentially broken; posts will fail or appear to hang")
+      m("div",{className:"ExtensionPage-settings"},
+        m("div",{style:"max-width:660px;margin:0 auto;"},
+          m("div",{style:"display:flex;gap:14px;padding:18px 20px;border-radius:8px;background:#fef3c7;border:1px solid #f59e0b;margin-bottom:0;"},
+            m("div",{style:"font-size:24px;flex-shrink:0;line-height:1.3;"},"\u26a0\ufe0f"),
+            m("div",{style:"flex:1;min-width:0;"},
+              m("div",{style:"font-size:14px;font-weight:700;color:#92400e;margin-bottom:8px;"},"Sync Queue Driver Detected \u2014 Action Required"),
+              m("p",{style:"margin:0 0 10px;font-size:13px;color:#78350f;line-height:1.6;"},
+                "Your forum is using the ",m("strong",null,"sync")," queue driver, which processes jobs inline during the web request rather than in the background. ",
+                "This works for tiny test forums but will cause timeouts and failures as your subscriber list grows. ",
+                "Install ",m("strong",null,"blomstra/database-queue")," and add the worker cron below to enable background processing."
+              ),
+              m("div",{style:"font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;"},"In practice:"),
+              m("ul",{style:"margin:0;padding-left:20px;"},
+                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"Under ~50 subscribers")," \u2014 sync is fine, most shared hosts handle it without timeouts"),
+                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"50\u2013200 subscribers")," \u2014 you'll start seeing slow post responses, occasional timeouts"),
+                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"200+ subscribers")," \u2014 sync will regularly timeout or exhaust memory on typical VPS hosting"),
+                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:0;line-height:1.5;"},m("strong",null,"500+ subscribers")," \u2014 sync is essentially broken; posts will fail or appear to hang")
+              )
             )
           )
         )
-      )),
-      // ── How the Queue Works ─────────────────────────────────────────────
-      m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:660px;margin:0 auto;"},
-        sh("How the Queue Works"),
-        notice("⚙️","What happens when a digest runs",
-          m("div",null,
-            m("p",{style:"margin:0 0 8px;"},"When the scheduler fires, ",code("digest:send")," queries all eligible users and pushes one job per user onto the queue. Workers (running ",code("queue:work"),") then pull jobs and send the emails. The queue acts as a buffer — the command and the sending happen independently."),
-            m("p",{style:"margin:0;"},"This means your forum stays responsive during large sends, failed emails retry automatically, and the process can be parallelised with multiple workers.")
-          ),
-          "#3b82f6"
-        ),
-        notice("📦","Shared data caching",
-          m("div",null,
-            m("p",{style:"margin:0 0 8px;"},"Almost everything in the digest is identical for every subscriber — new discussions, hot discussions, new members, favorites, leaderboard, awards, pick'em, gamepedia, stats, and section order are all built once per frequency run and stored in Laravel's cache for 2 hours."),
-            m("p",{style:"margin:0;"},"The only per-user query is unread discussions. For 10,000 subscribers this means roughly 10,013 total DB queries instead of 100,000+.")
-          ),
-          "#10b981"
-        ),
-          "#10b981"
-        ),
-        notice("🔄","Retries and backoff",
-          m("div",null,
-            m("p",{style:"margin:0 0 8px;"},"If a job fails (e.g. the mail server is temporarily unavailable), it is automatically retried up to the configured number of times. Retries use exponential backoff: 30 seconds, then 60 seconds, then 120 seconds between attempts."),
-            m("p",{style:"margin:0;"},"Permanently failed jobs land in your failed_jobs table. Inspect and retry them with ",code("php flarum queue:retry all"),".")
-          ),
-          "#f59e0b"
-        ),
-        notice("🪟","Window mode",
-          m("div",null,
-            m("p",{style:"margin:0 0 8px;"},"Set a send window (e.g. 1 a.m.–5 a.m.) instead of a single hour in the Settings tab. The scheduler fires every minute within the window and dispatches one chunk of users per minute until all subscribers are processed or the window closes."),
-            m("p",{style:"margin:0;"},"This spreads DB load over time, prevents spikes, and requires no extra cron entries. The extension tracks progress automatically and stops when done.")
-          ),
-          "#6366f1"
-        )
-      )),
-
-      // ── Queue Settings ──────────────────────────────────────────────────
-      m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:660px;margin:0 auto;"},
-        sh("Queue Settings"),
-        m("div",{className:"Form-group",style:"margin-bottom:20px;"},
-          m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},"Queue Name"),
-          m("p",{className:"helpText",style:"margin-bottom:6px;"},"The named queue digest jobs are pushed onto. Your ",code("queue:work")," cron must include this name. Default: ",code("digest"),"."),
-          m("div",{style:"display:flex;align-items:center;gap:8px;"},
-            m("input",{className:"FormControl",type:"text",value:getSettingVal("resofire-digest-mail.queue_name","digest"),style:"width:200px;",
-              oninput:function(e){s.queueName=e.target.value;},
-              onblur:function(e){saveSetting("resofire-digest-mail.queue_name",e.target.value.trim()||"digest");}
-            })
-          )
-        ),
-        m(NumberSetting,{settingKey:"resofire-digest-mail.queue_chunk_size",min:50,max:10000,label:tr("resofire-digest-mail.admin.settings.queue_chunk_size_label"),help:tr("resofire-digest-mail.admin.settings.queue_chunk_size_help")}),
-        m(NumberSetting,{settingKey:"resofire-digest-mail.queue_delay",     min:0,max:3600,label:tr("resofire-digest-mail.admin.settings.queue_delay_label"),    help:tr("resofire-digest-mail.admin.settings.queue_delay_help")}),
-        m(NumberSetting,{settingKey:"resofire-digest-mail.queue_tries",     min:1,max:10,  label:tr("resofire-digest-mail.admin.settings.queue_tries_label"),    help:tr("resofire-digest-mail.admin.settings.queue_tries_help")})
-      )),
-
-      // ── Cron Setup ──────────────────────────────────────────────────────
-      m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:660px;margin:0 auto;"},
-        sh("Cron Setup"),
-        notice("⚠️","This must be configured on your server",
-          "The following cron lines cannot be set from this panel — they must be added to your server\'s crontab by whoever manages your hosting. Run "+code("crontab -e")+" on the server and add the lines below.",
-          "#f59e0b"
-        ),
-        m("p",{style:"margin:0 0 12px;font-size:13px;color:var(--muted-color);line-height:1.6;"},
-          "Replace ",code("/path/to/flarum")," with your forum\'s root directory (the folder containing ",code("flarum"),"). Lines 1 and 2 are required. Line 3 (multiple workers) and line 4 (pre-population) are optional."
-        ),
-        // Scheduler
-        m("div",{style:"margin-bottom:16px;"},
-          m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"1. Flarum Scheduler (required for all extensions)"),
-          m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
-            "* * * * * cd /path/to/flarum && php flarum schedule:run >> /dev/null 2>&1"
-          )
-        ),
-        // Worker
-        m("div",{style:"margin-bottom:16px;"},
-          m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"2. Queue Worker"),
-          m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
-            "* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1"
-          ),
-          m("p",{style:"margin:6px 0 0;font-size:12px;color:var(--muted-color);"},
-            code("--queue="+qn+",default")," processes digest jobs first, then other notifications. ",
-            code("--max-time=55")," stops the worker cleanly before the next cron fires. ",
-            code("--tries=3")," and ",code("--backoff=30")," are additional safety nets at the worker level."
-          )
-        ),
-        // Multiple workers note
-        m("div",{style:"margin-bottom:16px;"},
-          m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"3. For Large Forums — Multiple Parallel Workers"),
-          m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
-            "# Add one line per worker — e.g. 3 workers:\n* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1\n* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1\n* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1"
-          )
-        ),
-        // Two-phase
-        m("div",{style:"margin-bottom:0;"},
-          m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"4. Optional — Two-Phase Pre-Population"),
-          m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
-            "# Optional: pre-build jobs before the window opens (large forums only):\n50 12 * * * cd /path/to/flarum && php flarum digest:enqueue --frequency=daily --delay=600 >> /dev/null 2>&1"
-          ),
-          m("p",{style:"margin:6px 0 0;font-size:12px;color:var(--muted-color);"},
-            "Replace ",code("50 12")," with 10 minutes before your window start. In window mode, This pre-populates the jobs table before workers start, eliminating first-minute construction overhead. Only meaningful for very large forums (50,000+) — smaller forums running window mode already handle pacing automatically."
-          )
-        )
-      )),
-
-      // ── Recommendations Table ───────────────────────────────────────────
-      m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:660px;margin:0 auto;"},
-        sh("Recommended Settings by Forum Size"),
-        m("p",{style:"margin:0 0 16px;font-size:13px;color:var(--muted-color);line-height:1.6;"},
-          "These are starting-point recommendations. Actual performance depends on your server hardware, mail provider response times, and how many users have opted in to digests. Always monitor your queue depth and adjust accordingly."
-        ),
-        m("div",{style:"overflow:hidden;border-radius:8px;border:1px solid var(--control-bg);"},
-          m("table",{style:"width:100%;border-collapse:collapse;font-size:12px;"},
-            m("thead",null,
-              m("tr",{style:"background:var(--control-bg);"},
-                tbl_head.map(function(h){
-                  return m("th",{style:"padding:10px 12px;text-align:left;font-weight:700;color:var(--muted-color);font-size:11px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;"},h);
-                })
-              )
+      ),
+      m("div",{className:"ExtensionPage-settings"},
+        m("div",{style:"max-width:660px;margin:0 auto;"},
+          sh("How the Queue Works"),
+          notice("\u2699\ufe0f","What happens when a digest runs",
+            m("div",null,
+              m("p",{style:"margin:0 0 8px;"},"When the scheduler fires, ",code("digest:send")," queries all eligible users and pushes one job per user onto the queue. Workers (running ",code("queue:work"),") then pull jobs and send the emails. The queue acts as a buffer \u2014 the command and the sending happen independently."),
+              m("p",{style:"margin:0;"},"This means your forum stays responsive during large sends, failed emails retry automatically, and the process can be parallelised with multiple workers.")
             ),
-            m("tbody",null,
-              tbl_rows.map(function(row,i){
-                var bg=i%2===0?"var(--body-bg)":"var(--control-bg)";
-                return m("tr",{style:"background:"+bg+";"},
-                  row.map(function(cell,ci){
-                    return m("td",{style:"padding:10px 12px;color:"+(ci===0?"var(--heading-color,var(--text-color))":"var(--muted-color)")+";font-weight:"+(ci===0?"600":"400")+";vertical-align:top;line-height:1.5;"},
-                      ci<=4?m("code",{style:"background:var(--control-bg);padding:1px 5px;border-radius:3px;font-size:11px;"},cell):cell
-                    );
-                  })
-                );
+            "#3b82f6"
+          ),
+          notice("\ud83d\udce6","Shared data caching",
+            m("div",null,
+              m("p",{style:"margin:0 0 8px;"},"Almost everything in the digest is identical for every subscriber \u2014 new discussions, hot discussions, new members, favorites, leaderboard, awards, pick'em, gamepedia, stats, and section order are all built once per frequency run and stored in Laravel's cache for 2 hours."),
+              m("p",{style:"margin:0;"},"The only per-user query is unread discussions. For 10,000 subscribers this means roughly 10,013 total DB queries instead of 100,000+.")
+            ),
+            "#10b981"
+          ),
+          notice("\ud83d\udd04","Retries and backoff",
+            m("div",null,
+              m("p",{style:"margin:0 0 8px;"},"If a job fails (e.g. the mail server is temporarily unavailable), it is automatically retried up to the configured number of times. Retries use exponential backoff: 30 seconds, then 60 seconds, then 120 seconds between attempts."),
+              m("p",{style:"margin:0;"},"Permanently failed jobs land in your failed_jobs table. Inspect and retry them with ",code("php flarum queue:retry all"),".")
+            ),
+            "#f59e0b"
+          ),
+          notice("\ud83e\ude9f","Window mode",
+            m("div",null,
+              m("p",{style:"margin:0 0 8px;"},"Set a send window (e.g. 1 a.m.\u20135 a.m.) instead of a single hour in the Settings tab. The scheduler fires every minute within the window and dispatches one chunk of users per minute until all subscribers are processed or the window closes."),
+              m("p",{style:"margin:0;"},"This spreads DB load over time, prevents spikes, and requires no extra cron entries. The extension tracks progress automatically and stops when done.")
+            ),
+            "#6366f1"
+          )
+        )
+      ),
+      m("div",{className:"ExtensionPage-settings"},
+        m("div",{style:"max-width:660px;margin:0 auto;"},
+          sh("Queue Settings"),
+          m("div",{className:"Form-group",style:"margin-bottom:20px;"},
+            m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},"Queue Name"),
+            m("p",{className:"helpText",style:"margin-bottom:6px;"},"The named queue digest jobs are pushed onto. Your ",code("queue:work")," cron must include this name. Default: ",code("digest"),"."),
+            m("div",{style:"display:flex;align-items:center;gap:8px;"},
+              m("input",{className:"FormControl",type:"text",value:getSettingVal("resofire-digest-mail.queue_name","digest"),style:"width:200px;",
+                oninput:function(e){s.queueName=e.target.value;},
+                onblur:function(e){saveSetting("resofire-digest-mail.queue_name",e.target.value.trim()||"digest");}
               })
             )
-          )
-        ),
-        m("div",{style:"margin-top:12px;padding:12px 16px;background:var(--control-bg);border-radius:8px;"},
-          m("p",{style:"margin:0;font-size:12px;color:var(--muted-color);line-height:1.6;"},
-            "💡 For 50,000+ member forums, consider switching from the database queue driver (",code("blomstra/database-queue"),") to Redis for significantly higher throughput. This requires server-level configuration and is outside the scope of this extension."
+          ),
+          m(NumberSetting,{settingKey:"resofire-digest-mail.queue_chunk_size",min:50,max:10000,label:tr("resofire-digest-mail.admin.settings.queue_chunk_size_label"),help:tr("resofire-digest-mail.admin.settings.queue_chunk_size_help")}),
+          m(NumberSetting,{settingKey:"resofire-digest-mail.queue_delay",min:0,max:3600,label:tr("resofire-digest-mail.admin.settings.queue_delay_label"),help:tr("resofire-digest-mail.admin.settings.queue_delay_help")}),
+          m(NumberSetting,{settingKey:"resofire-digest-mail.queue_tries",min:1,max:10,label:tr("resofire-digest-mail.admin.settings.queue_tries_label"),help:tr("resofire-digest-mail.admin.settings.queue_tries_help")})
+        )
+      ),
+      m("div",{className:"ExtensionPage-settings"},
+        m("div",{style:"max-width:660px;margin:0 auto;"},
+          sh("Cron Setup"),
+          notice("\u26a0\ufe0f","This must be configured on your server",
+            "The following cron lines cannot be set from this panel \u2014 they must be added to your server's crontab by whoever manages your hosting. Run "+code("crontab -e")+" on the server and add the lines below.",
+            "#f59e0b"
+          ),
+          m("p",{style:"margin:0 0 12px;font-size:13px;color:var(--muted-color);line-height:1.6;"},
+            "Replace ",code("/path/to/flarum")," with your forum's root directory (the folder containing ",code("flarum"),"). Lines 1 and 2 are required. Line 3 (multiple workers) and line 4 (pre-population) are optional."
+          ),
+          m("div",{style:"margin-bottom:16px;"},
+            m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"1. Flarum Scheduler (required for all extensions)"),
+            m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
+              "* * * * * cd /path/to/flarum && php flarum schedule:run >> /dev/null 2>&1"
+            )
+          ),
+          m("div",{style:"margin-bottom:16px;"},
+            m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"2. Queue Worker"),
+            m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
+              "* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1"
+            ),
+            m("p",{style:"margin:6px 0 0;font-size:12px;color:var(--muted-color);"},
+              code("--queue="+qn+",default")," processes digest jobs first, then other notifications. ",
+              code("--max-time=55")," stops the worker cleanly before the next cron fires. ",
+              code("--tries=3")," and ",code("--backoff=30")," are additional safety nets at the worker level."
+            )
+          ),
+          m("div",{style:"margin-bottom:16px;"},
+            m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"3. For Large Forums \u2014 Multiple Parallel Workers"),
+            m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
+              "# Add one line per worker \u2014 e.g. 3 workers:\n* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1\n* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1\n* * * * * cd /path/to/flarum && php flarum queue:work --queue="+qn+",default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1"
+            )
+          ),
+          m("div",{style:"margin-bottom:0;"},
+            m("div",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));margin-bottom:6px;"},"4. Optional \u2014 Two-Phase Pre-Population"),
+            m("div",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);word-break:break-all;line-height:1.7;"},
+              "# Optional: pre-build jobs before the window opens (large forums only):\n50 12 * * * cd /path/to/flarum && php flarum digest:enqueue --frequency=daily --delay=600 >> /dev/null 2>&1"
+            ),
+            m("p",{style:"margin:6px 0 0;font-size:12px;color:var(--muted-color);"},
+              "Replace ",code("50 12")," with 10 minutes before your window start. This pre-populates the jobs table before workers start, eliminating first-minute construction overhead. Only meaningful for very large forums (50,000+) \u2014 smaller forums running window mode already handle pacing automatically."
+            )
           )
         )
-      ))
+      ),
+      m("div",{className:"ExtensionPage-settings"},
+        m("div",{style:"max-width:660px;margin:0 auto;"},
+          sh("Recommended Settings by Forum Size"),
+          m("p",{style:"margin:0 0 16px;font-size:13px;color:var(--muted-color);line-height:1.6;"},
+            "These are starting-point recommendations. Actual performance depends on your server hardware, mail provider response times, and how many users have opted in to digests. Always monitor your queue depth and adjust accordingly."
+          ),
+          m("div",{style:"overflow:hidden;border-radius:8px;border:1px solid var(--control-bg);"},
+            m("table",{style:"width:100%;border-collapse:collapse;font-size:12px;"},
+              m("thead",null,
+                m("tr",{style:"background:var(--control-bg);"},
+                  tbl_head.map(function(h){
+                    return m("th",{style:"padding:10px 12px;text-align:left;font-weight:700;color:var(--muted-color);font-size:11px;text-transform:uppercase;letter-spacing:.4px;white-space:nowrap;"},h);
+                  })
+                )
+              ),
+              m("tbody",null,
+                tbl_rows.map(function(row,i){
+                  var bg=i%2===0?"var(--body-bg)":"var(--control-bg)";
+                  return m("tr",{style:"background:"+bg+";"},
+                    row.map(function(cell,ci){
+                      return m("td",{style:"padding:10px 12px;color:"+(ci===0?"var(--heading-color,var(--text-color))":"var(--muted-color)")+";font-weight:"+(ci===0?"600":"400")+";vertical-align:top;line-height:1.5;"},
+                        ci<=3?m("code",{style:"background:var(--control-bg);padding:1px 5px;border-radius:3px;font-size:11px;"},cell):cell
+                      );
+                    })
+                  );
+                })
+              )
+            )
+          ),
+          m("div",{style:"margin-top:12px;padding:12px 16px;background:var(--control-bg);border-radius:8px;"},
+            m("p",{style:"margin:0;font-size:12px;color:var(--muted-color);line-height:1.6;"},
+              "\ud83d\udca1 For 50,000+ member forums, consider switching from the database queue driver (",code("blomstra/database-queue"),") to Redis for significantly higher throughput. This requires server-level configuration and is outside the scope of this extension."
+            )
+          )
+        )
+      )
     );
   }
 };
