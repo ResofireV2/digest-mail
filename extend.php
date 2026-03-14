@@ -1,6 +1,7 @@
 <?php
 
 use Resofire\DigestMail\Api\Controller\DigestStatsController;
+use Resofire\DigestMail\Api\Controller\DigestSubscribersController;
 use Resofire\DigestMail\Api\Controller\SendTestDigestController;
 use Resofire\DigestMail\Console\SendDigestCommand;
 use Resofire\DigestMail\Console\EnqueueDigestCommand;
@@ -94,6 +95,11 @@ return [
             '/resofire/digest-mail/stats',
             'resofire.digest-mail.stats',
             DigestStatsController::class
+        )
+        ->get(
+            '/resofire/digest-mail/subscribers',
+            'resofire.digest-mail.subscribers',
+            DigestSubscribersController::class
         ),
 
     // -------------------------------------------------------------------------

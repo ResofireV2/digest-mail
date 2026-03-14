@@ -313,6 +313,97 @@ var DigestOrderTab={
   }
 };
 
+var SubscriberList={
+  oninit:function(vnode){
+    vnode.state.loading=false;
+    vnode.state.error=null;
+    vnode.state.data=null;
+    vnode.state.page=1;
+  },
+  load:function(vnode,page){
+    var freq=vnode.attrs.frequency;
+    vnode.state.loading=true;
+    vnode.state.error=null;
+    vnode.state.page=page;
+    m.redraw();
+    app().request({
+      method:"GET",
+      url:app().forum.attribute("apiUrl")+"/resofire/digest-mail/subscribers?frequency="+freq+"&page="+page+"&per_page=15"
+    }).then(function(d){
+      vnode.state.loading=false;
+      vnode.state.data=d;
+      m.redraw();
+    }).catch(function(e){
+      vnode.state.loading=false;
+      vnode.state.error=(e&&e.message)||"Failed to load subscribers.";
+      m.redraw();
+    });
+  },
+  view:function(vnode){
+    var s=vnode.state;
+    var color=vnode.attrs.color||"#f59e0b";
+    var formatDate=function(str){
+      if(!str)return "Never";
+      var d=new Date(str.replace(" ","T")+"Z");
+      return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"});
+    };
+    var renderAvatar=function(user){
+      if(user.avatar_url){
+        return m("img",{src:user.avatar_url,style:"width:28px;height:28px;border-radius:50%;object-fit:cover;flex-shrink:0;"});
+      }
+      var initials=(user.username||"?").charAt(0).toUpperCase();
+      return m("div",{style:"width:28px;height:28px;border-radius:50%;background:"+color+";display:flex;align-items:center;justify-content:center;flex-shrink:0;"},
+        m("span",{style:"font-size:12px;font-weight:700;color:#fff;"},initials)
+      );
+    };
+
+    if(s.loading){
+      return m("div",{style:"padding:16px;text-align:center;color:var(--muted-color);font-size:13px;"},"Loading\u2026");
+    }
+    if(s.error){
+      return m("div",{style:"padding:12px;color:#dc2626;font-size:13px;"},s.error);
+    }
+    if(!s.data){
+      return m("div",{style:"padding:16px;text-align:center;color:var(--muted-color);font-size:13px;"},"No data loaded.");
+    }
+
+    var d=s.data;
+    var hasPrev=d.page>1;
+    var hasNext=d.page<d.total_pages;
+
+    return m("div",{style:"padding:12px 0 4px;"},
+      d.data.length===0
+        ?m("p",{style:"color:var(--muted-color);font-size:13px;padding:0 18px;margin:0;"},"No subscribers found.")
+        :m("div",null,
+          d.data.map(function(user){
+            return m("div",{key:user.id,style:"display:flex;align-items:center;gap:10px;padding:8px 18px;border-bottom:1px solid var(--control-bg);"},
+              renderAvatar(user),
+              m("div",{style:"flex:1;min-width:0;"},
+                m("span",{style:"font-size:13px;font-weight:600;color:var(--heading-color,var(--text-color));display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"},user.username)
+              ),
+              m("span",{style:"font-size:11px;color:var(--muted-color);white-space:nowrap;flex-shrink:0;"},
+                "Last sent: "+formatDate(user.last_sent)
+              )
+            );
+          }),
+          (hasPrev||hasNext)?m("div",{style:"display:flex;align-items:center;justify-content:space-between;padding:10px 18px 6px;"},
+            m("button",{
+              style:"font-size:12px;padding:4px 10px;border:1px solid var(--control-bg);border-radius:5px;background:var(--body-bg);color:"+(hasPrev?"var(--text-color)":"var(--muted-color)")+";cursor:"+(hasPrev?"pointer":"not-allowed")+";",
+              disabled:!hasPrev,
+              onclick:function(e){e.preventDefault();if(hasPrev)SubscriberList.load(vnode,d.page-1);}
+            },"\u2190 Prev"),
+            m("span",{style:"font-size:12px;color:var(--muted-color);"},"Page "+d.page+" of "+d.total_pages+" \u2014 "+d.total+" total"),
+            m("button",{
+              style:"font-size:12px;padding:4px 10px;border:1px solid var(--control-bg);border-radius:5px;background:var(--body-bg);color:"+(hasNext?"var(--text-color)":"var(--muted-color)")+";cursor:"+(hasNext?"pointer":"not-allowed")+";",
+              disabled:!hasNext,
+              onclick:function(e){e.preventDefault();if(hasNext)SubscriberList.load(vnode,d.page+1);}
+            },"Next \u2192")
+          ):null
+        )
+    );
+  }
+};
+
 var StatsTab={
   oninit:function(vnode){
     vnode.state.loading=true;
@@ -361,15 +452,42 @@ var StatsTab={
             var count=sub.by_frequency[freq]||0;
             var pct=sub.total_subscribed>0?Math.round(count/sub.total_subscribed*100):0;
             var color=freqColor[freq];
-            return m("div",{key:freq,style:"background:var(--control-bg);border-radius:8px;padding:14px 18px;"},
-              m("div",{style:"display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"},
-                m("span",{style:"font-size:14px;font-weight:700;color:var(--heading-color,var(--text-color));"},freqLabel[freq]),
-                m("span",{style:"font-size:14px;font-weight:700;color:"+color+";"},count+" user"+(count!==1?"s":""))
+            var panelKey="panel_"+freq;
+            var open=s[panelKey]||false;
+            var listKey="list_"+freq;
+            return m("div",{key:freq,style:"background:var(--control-bg);border-radius:8px;overflow:hidden;"},
+              m("div",{style:"padding:14px 18px;"},
+                m("div",{style:"display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;"},
+                  m("span",{style:"font-size:14px;font-weight:700;color:var(--heading-color,var(--text-color));"},freqLabel[freq]),
+                  m("div",{style:"display:flex;align-items:center;gap:10px;"},
+                    m("span",{style:"font-size:14px;font-weight:700;color:"+color+";"},count+" user"+(count!==1?"s":"")),
+                    count>0?m("button",{
+                      style:"font-size:11px;font-weight:600;padding:3px 9px;border-radius:5px;border:1px solid "+color+";background:transparent;color:"+color+";cursor:pointer;white-space:nowrap;",
+                      onclick:function(e){
+                        e.preventDefault();
+                        s[panelKey]=!open;
+                        if(!open&&!s[listKey]){
+                          if(!s._lists)s._lists={};
+                          s._lists[freq]=true;
+                        }
+                        m.redraw();
+                      }
+                    },open?"Hide \u25b2":"View \u25bc"):null
+                  )
+                ),
+                m("div",{style:"height:6px;border-radius:3px;background:var(--body-bg);overflow:hidden;"},
+                  m("div",{style:"height:100%;border-radius:3px;background:"+color+";width:"+pct+"%;transition:width .4s;"})
+                ),
+                m("div",{style:"font-size:11px;color:var(--muted-color);margin-top:5px;text-align:right;"},pct+"% of subscribers")
               ),
-              m("div",{style:"height:6px;border-radius:3px;background:var(--body-bg);overflow:hidden;"},
-                m("div",{style:"height:100%;border-radius:3px;background:"+color+";width:"+pct+"%;transition:width .4s;"})
-              ),
-              m("div",{style:"font-size:11px;color:var(--muted-color);margin-top:5px;text-align:right;"},pct+"% of subscribers")
+              open?m("div",{style:"border-top:1px solid var(--body-bg);"},
+                m(SubscriberList,{
+                  key:freq,
+                  frequency:freq,
+                  color:color,
+                  oncreate:function(sl){SubscriberList.load(sl,1);}
+                })
+              ):null
             );
           })
         )
