@@ -55,13 +55,16 @@ return [
     //     --dry-run                          print recipients, don't dispatch
     //     --user=ID                          restrict to one user (testing)
     //
-    // .schedule() — registers the hourly scheduler entry via Flarum's own
+    // .schedule() — registers the per-minute scheduler entry via Flarum's own
     // scheduling system (flarum.console.scheduled), which is the correct API.
+    // Runs every minute — the command's own dueFrequencies() time gate handles
+    // whether to actually do work based on the configured send window. Outside
+    // the window it exits immediately with no DB queries beyond settings reads.
     // -------------------------------------------------------------------------
     (new Extend\Console)
         ->command(SendDigestCommand::class)
         ->command(EnqueueDigestCommand::class)
-        ->schedule(SendDigestCommand::class, fn ($event) => $event->hourly()),
+        ->schedule(SendDigestCommand::class, fn ($event) => $event->everyMinute()),
 
     // -------------------------------------------------------------------------
     // Forum routes
