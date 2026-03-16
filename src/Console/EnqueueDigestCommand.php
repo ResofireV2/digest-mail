@@ -122,51 +122,48 @@ class EnqueueDigestCommand extends Command
         $enqueued = 0;
         $skipped  = 0;
 
-        User::query()
+        $users = User::query()
             ->where('digest_frequency', $frequency)
             ->where('is_email_confirmed', true)
             ->where(function ($q) use ($cutoff) {
                 $q->whereNull('digest_last_sent_at')
                   ->orWhere('digest_last_sent_at', '<', $cutoff);
             })
-            ->chunk($chunkSize, function (Collection $users) use (
-                $frequency, $since, $isDryRun, $sharedData, $cacheKey,
-                $queueName, $delaySecs, $tries, &$enqueued, &$skipped
-            ) {
-                foreach ($users as $user) {
-                    // Dry-run: build content just to count eligible users.
-                    if ($isDryRun) {
-                        $theme   = $this->mailer->resolveTheme($user);
-                        $content = $this->query->buildForUser(
-                            $user, $since, $frequency, $theme, $sharedData
-                        );
-                        if ($content->isEmpty()) { $skipped++; } else { $enqueued++; }
-                        continue;
-                    }
+            ->limit($chunkSize)
+            ->get();
 
-                    // Real enqueue: push lightweight job — worker builds content at send time.
-                    $theme = $this->mailer->resolveTheme($user);
+        foreach ($users as $user) {
+            // Dry-run: build content just to count eligible users.
+            if ($isDryRun) {
+                $theme   = $this->mailer->resolveTheme($user);
+                $content = $this->query->buildForUser(
+                    $user, $since, $frequency, $theme, $sharedData
+                );
+                if ($content->isEmpty()) { $skipped++; } else { $enqueued++; }
+                continue;
+            }
 
-                    $job = (new SendDigestJob($user, $frequency, $cacheKey, $since, $theme))
-                        ->onQueue($queueName)
-                        ->tries($tries)
-                        ->backoff([30, 60, 120]);
+            // Real enqueue: push lightweight job — worker builds content at send time.
+            $theme = $this->mailer->resolveTheme($user);
 
-                    if ($delaySecs > 0) {
-                        $job = $job->delay($delaySecs);
-                    }
+            $job = (new SendDigestJob($user, $frequency, $cacheKey, $since, $theme))
+                ->onQueue($queueName)
+                ->tries($tries)
+                ->backoff([30, 60, 120]);
 
-                    $this->queue->push($job);
+            if ($delaySecs > 0) {
+                $job = $job->delay($delaySecs);
+            }
 
-                    // Stamp last sent so this user isn't double-dispatched.
-                    User::where('id', $user->id)->update([
-                        'digest_last_sent_at' => Carbon::now()->toDateTimeString(),
-                    ]);
+            $this->queue->push($job);
 
-                    $enqueued++;
-                }
-            });
+            // Stamp last sent so this user isn't double-dispatched.
+            User::where('id', $user->id)->update([
+                'digest_last_sent_at' => Carbon::now()->toDateTimeString(),
+            ]);
 
+            $enqueued++;
+        }
         $verb = $isDryRun ? 'Would enqueue' : 'Enqueued';
         $this->info("{$verb}: {$enqueued}. Skipped (no content): {$skipped}.");
 

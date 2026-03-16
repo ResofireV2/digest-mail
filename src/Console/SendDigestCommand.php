@@ -13,7 +13,6 @@ use Illuminate\Console\Command;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Illuminate\Contracts\Queue\Queue;
 use Illuminate\Database\ConnectionInterface;
-use Illuminate\Database\Eloquent\Collection;
 
 /**
  * Console command that drives the entire digest send cycle.
@@ -228,7 +227,11 @@ class SendDigestCommand extends Command
             }
         }
 
-        // Chunk through eligible users — memory stays flat at O(chunkSize).
+        // Window mode: fetch only one chunk of users per scheduler run.
+        // Each minute the scheduler fires, dispatches $chunkSize users, and exits.
+        // The window-complete check below detects when all users are done.
+        // This spreads DB load across the window rather than processing
+        // all subscribers in one large run.
         $userQuery = User::query()
             ->where('digest_frequency', $frequency)
             ->where('is_email_confirmed', true)
@@ -241,54 +244,51 @@ class SendDigestCommand extends Command
             $userQuery->where('id', $singleUserId);
         }
 
-        $userQuery->chunk($chunkSize, function (Collection $users) use (
-            $frequency, $since, $isDryRun, $sharedData, $cacheKey,
-            $queueName, $delaySecs, &$dispatched, &$skipped
-        ) {
-            foreach ($users as $user) {
-                // Dry-run: build content to summarise what would be sent.
-                if ($isDryRun) {
-                    $theme   = $this->mailer->resolveTheme($user);
-                    $content = $this->query->buildForUser(
-                        $user, $since, $frequency, $theme, $sharedData
-                    );
-                    if ($content->isEmpty()) {
-                        $this->line("  [skip]     {$user->username} (#{$user->id}) — no content");
-                        $skipped++;
-                    } else {
-                        $this->line("  [dry-run]  {$user->username} (#{$user->id}) — " . $this->contentSummary($content));
-                        $dispatched++;
-                    }
-                    continue;
+        $users = $userQuery->limit($chunkSize)->get();
+
+        foreach ($users as $user) {
+            // Dry-run: build content to summarise what would be sent.
+            if ($isDryRun) {
+                $theme   = $this->mailer->resolveTheme($user);
+                $content = $this->query->buildForUser(
+                    $user, $since, $frequency, $theme, $sharedData
+                );
+                if ($content->isEmpty()) {
+                    $this->line("  [skip]     {$user->username} (#{$user->id}) — no content");
+                    $skipped++;
+                } else {
+                    $this->line("  [dry-run]  {$user->username} (#{$user->id}) — " . $this->contentSummary($content));
+                    $dispatched++;
                 }
-
-                // Real send: push a lightweight job — no DigestContent, no token.
-                // The worker builds content and generates the token at send time.
-                $theme = $this->mailer->resolveTheme($user);
-
-                $job = (new SendDigestJob($user, $frequency, $cacheKey, $since, $theme))
-                    ->onQueue($queueName)
-                    ->tries($this->jobTries())
-                    ->backoff([30, 60, 120]);
-
-                if ($delaySecs > 0) {
-                    $job = $job->delay($delaySecs);
-                }
-
-                $this->queue->push($job);
-
-                // Stamp last sent so the user isn't double-dispatched if
-                // the command re-runs within the same window.
-                User::where('id', $user->id)->update([
-                    'digest_last_sent_at' => Carbon::now()->toDateTimeString(),
-                ]);
-
-                $this->line("  [queued]   {$user->username} (#{$user->id})");
-                $dispatched++;
+                continue;
             }
-        });
 
-        // Log the batch.
+            // Real send: push a lightweight job — no DigestContent, no token.
+            // The worker builds content and generates the token at send time.
+            $theme = $this->mailer->resolveTheme($user);
+
+            $job = (new SendDigestJob($user, $frequency, $cacheKey, $since, $theme))
+                ->onQueue($queueName)
+                ->tries($this->jobTries())
+                ->backoff([30, 60, 120]);
+
+            if ($delaySecs > 0) {
+                $job = $job->delay($delaySecs);
+            }
+
+            $this->queue->push($job);
+
+            // Stamp last sent so the user isn't double-dispatched if
+            // the command re-runs within the same window.
+            User::where('id', $user->id)->update([
+                'digest_last_sent_at' => Carbon::now()->toDateTimeString(),
+            ]);
+
+            $this->line("  [queued]   {$user->username} (#{$user->id})");
+            $dispatched++;
+        }
+
+                // Log the batch.
         if (!$isDryRun && $dispatched > 0) {
             $this->db->table('digest_send_log')->insert([
                 'frequency'     => $frequency,
