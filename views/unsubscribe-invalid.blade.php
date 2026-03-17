@@ -1,7 +1,6 @@
 @extends('flarum.forum::layouts.basic')
 @php
     $forumTitle = $settings->get('forum_title', 'Forum');
-    // $forumUrl is passed from UnsubscribeController
 @endphp
 
 @section('title', 'Invalid or Expired Link')
@@ -10,30 +9,35 @@
 
 <style>
     .digest-card {
-        background: #fff;
-        border-radius: 10px;
-        padding: 36px 32px;
-        box-shadow: 0 2px 12px rgba(0,0,0,.08);
-        max-width: 420px;
+        background: var(--body-bg, #fff);
+        border-radius: 12px;
+        padding: 36px 28px;
+        box-shadow: 0 2px 16px rgba(0,0,0,.08);
+        max-width: 440px;
         margin: 0 auto;
         text-align: center;
+        border: 1px solid var(--control-bg, #e5e7eb);
+        font-family: var(--font-family, system-ui, -apple-system, sans-serif);
     }
-    .digest-card .icon {
-        font-size: 40px;
-        margin-bottom: 16px;
-    }
+    .digest-card .icon { font-size: 40px; margin-bottom: 16px; }
     .digest-card h2 {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 700;
-        color: #111827;
+        color: var(--heading-color, var(--text-color, #111827));
         margin: 0 0 10px;
     }
     .digest-card p {
         font-size: 14px;
-        color: #6b7280;
-        margin: 0 0 24px;
+        color: var(--muted-color, #6b7280);
+        margin: 0 0 16px;
         line-height: 1.6;
     }
+    .digest-card a {
+        color: var(--primary-color, #4f46e5);
+        text-decoration: none;
+        font-weight: 500;
+    }
+    .digest-card a:hover { text-decoration: underline; }
 </style>
 
 <div class="digest-card">

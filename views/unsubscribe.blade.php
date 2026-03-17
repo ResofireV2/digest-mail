@@ -1,9 +1,8 @@
 @extends('flarum.forum::layouts.basic')
 @php
-    $primaryColor = $settings->get('theme_primary_color', '#4f46e5');
     $forumTitle   = $settings->get('forum_title', 'Forum');
 
-    $weekDayNames = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+    $weekDayNames   = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     $weeklyDayLabel = $weekDayNames[(int) $settings->get('resofire-digest-mail.weekly_day', 1)] ?? 'Monday';
 
     $monthlyDayInt = (int) $settings->get('resofire-digest-mail.monthly_day', 1);
@@ -22,13 +21,10 @@
     $allowMonthly = $settings->get('resofire-digest-mail.allow_monthly', '1') === '1';
 
     $options = [];
-    if ($allowDaily)   $options[] = ['value' => 'daily',   'emoji' => '☀️',  'title' => 'Daily',   'desc' => 'One email per day with the latest activity.'];
-    if ($allowWeekly)  $options[] = ['value' => 'weekly',  'emoji' => '📅',  'title' => 'Weekly',  'desc' => 'A weekly roundup every ' . $weeklyDayLabel . '.'];
-    if ($allowMonthly) $options[] = ['value' => 'monthly', 'emoji' => '📆',  'title' => 'Monthly', 'desc' => 'A monthly summary on the ' . $monthlyDayLabel . ' of each month.'];
-    $options[] =                    ['value' => 'off',     'emoji' => '🔕',  'title' => 'Off',     'desc' => "Don't send me any digest emails.", 'off' => true];
-
-    // Build GET URLs for each option — avoids CSRF entirely.
-    // $postUrl already contains the full base URL with token and frequency param
+    if ($allowDaily)   $options[] = ['value' => 'daily',   'emoji' => '☀️', 'title' => 'Daily',   'desc' => 'One email per day with the latest activity.'];
+    if ($allowWeekly)  $options[] = ['value' => 'weekly',  'emoji' => '📅', 'title' => 'Weekly',  'desc' => 'A weekly roundup every ' . $weeklyDayLabel . '.'];
+    if ($allowMonthly) $options[] = ['value' => 'monthly', 'emoji' => '📆', 'title' => 'Monthly', 'desc' => 'A monthly summary on the ' . $monthlyDayLabel . ' of each month.'];
+    $options[] =                    ['value' => 'off',     'emoji' => '🔕', 'title' => 'Off',     'desc' => "Don't send me any digest emails.", 'off' => true];
 @endphp
 
 @section('title', 'Email Digest Preferences')
@@ -37,77 +33,83 @@
 
 <style>
     .digest-card {
-        background: #fff;
-        border-radius: 10px;
-        padding: 36px 32px;
-        box-shadow: 0 2px 12px rgba(0,0,0,.08);
+        background: var(--body-bg, #fff);
+        border-radius: 12px;
+        padding: 32px 28px;
+        box-shadow: 0 2px 16px rgba(0,0,0,.08);
         text-align: left;
-        max-width: 420px;
+        max-width: 440px;
         margin: 0 auto;
+        border: 1px solid var(--control-bg, #e5e7eb);
+        font-family: var(--font-family, system-ui, -apple-system, sans-serif);
     }
     .digest-card h2 {
-        font-size: 20px;
+        font-size: 18px;
         font-weight: 700;
-        color: #111827;
+        color: var(--heading-color, var(--text-color, #111827));
         margin: 0 0 8px;
-        letter-spacing: -0.3px;
+        letter-spacing: -0.2px;
     }
     .digest-card .subtitle {
         font-size: 14px;
-        color: #6b7280;
-        margin: 0 0 28px;
+        color: var(--muted-color, #6b7280);
+        margin: 0 0 6px;
+        line-height: 1.5;
+    }
+    .click-hint {
+        font-size: 13px;
+        color: var(--muted-color, #9ca3af);
+        margin: 0 0 20px;
+        font-style: italic;
     }
     .freq-option {
         display: flex;
         align-items: flex-start;
         gap: 12px;
-        padding: 14px 16px;
-        border: 2px solid #e5e7eb;
+        padding: 13px 15px;
+        background: var(--control-bg, #f3f4f6);
+        border: 2px solid var(--control-bg, #e5e7eb);
         border-radius: 8px;
-        margin-bottom: 10px;
+        margin-bottom: 8px;
         cursor: pointer;
-        transition: border-color .15s;
+        transition: border-color .15s, background .15s;
         text-decoration: none;
-        color: inherit;
+        color: var(--text-color, #111827);
     }
     .freq-option:hover {
-        border-color: {{ $primaryColor }};
+        border-color: var(--primary-color, #4f46e5);
         text-decoration: none;
-        color: inherit;
+        color: var(--text-color, #111827);
     }
     .freq-option.is-selected {
-        border-color: {{ $primaryColor }};
+        border-color: var(--primary-color, #4f46e5);
+        background: var(--body-bg, #fff);
     }
-    .freq-label { flex: 1; }
+    .freq-label { flex: 1; min-width: 0; }
     .freq-title {
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
-        color: #111827;
+        color: var(--heading-color, var(--text-color, #111827));
         display: block;
         margin-bottom: 2px;
     }
     .freq-option.is-selected .freq-title {
-        color: {{ $primaryColor }};
+        color: var(--primary-color, #4f46e5);
     }
     .freq-desc {
         font-size: 13px;
-        color: #6b7280;
-    }
-    .click-hint {
-        font-size: 13px;
-        color: #9ca3af;
-        margin: -16px 0 20px;
-        font-style: italic;
+        color: var(--muted-color, #6b7280);
+        line-height: 1.4;
     }
     .freq-option.is-off {
         border-style: dashed;
     }
     .check-icon {
-        width: 20px;
-        height: 20px;
+        width: 18px;
+        height: 18px;
         flex-shrink: 0;
-        margin-top: 1px;
-        color: {{ $primaryColor }};
+        margin-top: 2px;
+        color: var(--primary-color, #4f46e5);
         visibility: hidden;
     }
     .freq-option.is-selected .check-icon {
