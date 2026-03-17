@@ -152,6 +152,74 @@ var SelectSetting={
   view:function(vnode){var a=vnode.attrs;var s=vnode.state;return m("div",{className:"Form-group",style:"margin-bottom:20px;"},m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},a.label),a.help?m("p",{className:"helpText",style:"margin-bottom:6px;"},a.help):null,m("select",{className:"FormControl Select-input",value:s.value,style:"max-width:260px;padding-bottom:8px;height:auto;line-height:1.4;",onchange:function(e){s.value=e.target.value;saveSetting(a.settingKey,e.target.value);}},Object.keys(a.options).map(function(k){return m("option",{value:k,selected:s.value===k},a.options[k]);})));}
 };
 
+var TokenCheckerSection={
+  oninit:function(vnode){
+    vnode.state.token="";
+    vnode.state.result=null;
+    vnode.state.error=null;
+    vnode.state.loading=false;
+  },
+  check:function(state){
+    var token=state.token.trim();
+    if(!token){state.error="Please enter a token.";state.result=null;m.redraw();return;}
+    state.loading=true;state.result=null;state.error=null;m.redraw();
+    app().request({
+      method:"GET",
+      url:app().forum.attribute("apiUrl")+"/resofire/digest-mail/check-token?token="+encodeURIComponent(token)
+    }).then(function(d){
+      state.loading=false;state.result=d;m.redraw();
+    }).catch(function(e){
+      state.loading=false;
+      state.error=(e&&e.response&&e.response.errors&&e.response.errors[0]&&e.response.errors[0].detail)||(e&&e.message)||"Failed to check token.";
+      m.redraw();
+    });
+  },
+  view:function(vnode){
+    var s=vnode.state;
+    var formatDate=function(str){
+      if(!str)return "—";
+      var d=new Date(str.replace(" ","T")+"Z");
+      return d.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"})+" at "+d.toLocaleTimeString(undefined,{hour:"2-digit",minute:"2-digit"});
+    };
+    return m("div",{className:"ExtensionPage-settings"},
+      m("div",{style:"max-width:600px;margin:0 auto;"},
+        m("h3",{style:"font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted-color);margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--control-bg);"},"Token Checker"),
+        m("p",{className:"helpText",style:"margin-bottom:12px;"},"Paste an unsubscribe token to verify it is valid. Use this to confirm a user's token is intact without sending an email."),
+        m("div",{className:"Form-group"},
+          m("div",{style:"display:flex;gap:8px;align-items:center;"},
+            m("input",{
+              className:"FormControl",
+              type:"text",
+              placeholder:"Paste token here…",
+              value:s.token,
+              style:"flex:1;font-family:monospace;font-size:12px;",
+              oninput:function(e){s.token=e.target.value;s.result=null;s.error=null;},
+              onkeydown:function(e){if(e.key==="Enter"){e.preventDefault();TokenCheckerSection.check(s);}}
+            }),
+            m("button",{
+              className:"Button Button--primary",
+              disabled:s.loading,
+              onclick:function(e){e.preventDefault();TokenCheckerSection.check(s);}
+            },s.loading?"Checking…":"Check Token")
+          )
+        ),
+        s.result?m("div",{className:"Alert Alert--success",style:"margin-top:12px;"},
+          m("div",{style:"font-weight:700;margin-bottom:4px;"},"\u2713 Valid token"),
+          m("div",{style:"font-size:13px;"},
+            m("span",{style:"color:var(--muted-color);"},"User: "),
+            m("strong",null,s.result.username),
+            m("span",{style:"color:var(--muted-color);margin-left:16px;"},"Created: "),
+            m("strong",null,formatDate(s.result.created_at)),
+            m("span",{style:"color:var(--muted-color);margin-left:16px;"},"Expires: "),
+            m("strong",null,formatDate(s.result.expires_at))
+          )
+        ):null,
+        s.error?m("div",{className:"Alert Alert--error",style:"margin-top:12px;"},s.error):null
+      )
+    );
+  }
+};
+
 var TestSendSection={
   oninit:function(vnode){vnode.state.email="";vnode.state.frequency="weekly";vnode.state.theme="light";vnode.state.loading=false;vnode.state.result=null;vnode.state.error=null;},
   send:function(state){var email=state.email.trim();if(!email){state.error=app().translator.trans("resofire-digest-mail.admin.test_send.error_empty_email");state.result=null;m.redraw();return;}state.loading=true;state.result=null;state.error=null;m.redraw();app().request({method:"POST",url:app().forum.attribute("apiUrl")+"/resofire/digest-mail/test-send",body:{email:email,frequency:state.frequency,theme:state.theme}}).then(function(data){state.loading=false;state.result=data;m.redraw();}).catch(function(e){state.loading=false;var serverMsg=(e&&e.response&&e.response.error)||(e&&e.message)||null;state.error=serverMsg||app().translator.trans("resofire-digest-mail.admin.test_send.error_generic");m.redraw();});},
@@ -227,6 +295,7 @@ var SettingsTab={
               !!(exts.reactions||{}).enabled&&!!(exts.likes||{}).enabled?"flarum/likes + fof/reactions active — showing reaction breakdown":!!(exts.likes||{}).enabled?"flarum/likes is active — showing like counts":"flarum/likes is disabled — section will not appear in digest"))
         )
       )),
+      m(TokenCheckerSection),
       m(TestSendSection)
     );
   }

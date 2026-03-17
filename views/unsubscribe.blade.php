@@ -16,6 +16,17 @@
     };
     $monthlyDayLabel = $monthlyDayInt . $suffix;
 
+    // Only show frequencies the admin has enabled
+    $allowDaily   = $settings->get('resofire-digest-mail.allow_daily',   '0') === '1';
+    $allowWeekly  = $settings->get('resofire-digest-mail.allow_weekly',  '1') === '1';
+    $allowMonthly = $settings->get('resofire-digest-mail.allow_monthly', '1') === '1';
+
+    $options = [];
+    if ($allowDaily)   $options[] = ['value' => 'daily',   'emoji' => '☀️',  'title' => 'Daily',   'desc' => 'One email per day with the latest activity.'];
+    if ($allowWeekly)  $options[] = ['value' => 'weekly',  'emoji' => '📅',  'title' => 'Weekly',  'desc' => 'A weekly roundup every ' . $weeklyDayLabel . '.'];
+    if ($allowMonthly) $options[] = ['value' => 'monthly', 'emoji' => '📆',  'title' => 'Monthly', 'desc' => 'A monthly summary on the ' . $monthlyDayLabel . ' of each month.'];
+    $options[] =                    ['value' => 'off',     'emoji' => '🔕',  'title' => 'Off',     'desc' => "Don't send me any digest emails.", 'off' => true];
+
     // Build GET URLs for each option — avoids CSRF entirely.
     // $postUrl already contains the full base URL with token and frequency param
 @endphp
@@ -114,12 +125,7 @@
     </p>
     <p class="click-hint">👆 Click an option to save your preference instantly.</p>
 
-    @foreach ([
-        ['value' => 'daily',   'emoji' => '☀️',  'title' => 'Daily',   'desc' => 'One email per day with the latest activity.'],
-        ['value' => 'weekly',  'emoji' => '📅',  'title' => 'Weekly',  'desc' => 'A weekly roundup every ' . $weeklyDayLabel . '.'],
-        ['value' => 'monthly', 'emoji' => '📆',  'title' => 'Monthly', 'desc' => 'A monthly summary on the ' . $monthlyDayLabel . ' of each month.'],
-        ['value' => 'off',     'emoji' => '🔕',  'title' => 'Off',     'desc' => "Don't send me any digest emails.", 'off' => true],
-    ] as $option)
+    @foreach ($options as $option)
     <a href="{{ $postUrl }}{{ $option['value'] }}"
        class="freq-option{{ $currentFrequency === $option['value'] || ($option['value'] === 'off' && $currentFrequency === null) ? ' is-selected' : '' }}{{ !empty($option['off']) ? ' is-off' : '' }}">
         <span class="freq-label">

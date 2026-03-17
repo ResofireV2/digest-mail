@@ -1,5 +1,6 @@
 <?php
 
+use Resofire\DigestMail\Api\Controller\CheckTokenController;
 use Resofire\DigestMail\Api\Controller\DigestStatsController;
 use Resofire\DigestMail\Api\Controller\DigestSubscribersController;
 use Resofire\DigestMail\Api\Controller\SendTestDigestController;
@@ -103,6 +104,11 @@ return [
             '/resofire/digest-mail/subscribers',
             'resofire.digest-mail.subscribers',
             DigestSubscribersController::class
+        )
+        ->get(
+            '/resofire/digest-mail/check-token',
+            'resofire.digest-mail.check-token',
+            CheckTokenController::class
         ),
 
     // -------------------------------------------------------------------------
