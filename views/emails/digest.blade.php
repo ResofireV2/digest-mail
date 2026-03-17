@@ -332,28 +332,21 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
 @if ($content->newMembers->isNotEmpty())
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:36px;">
     <tr><td>{!! $sectionHeader('New Members') !!}</td></tr>
-    <tr><td>
-        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
-            @php $col = 0; @endphp
-            @foreach ($content->newMembers as $member)
-                @if ($col % 2 === 0 && $col > 0) </tr><tr> @endif
-                <td width="50%" style="padding:5px 5px 5px 0; vertical-align:top;">
-                    <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-                        <tr><td class="surface2" style="background-color:{{ $c['surface2'] }}; border-radius:8px; padding:14px 16px; vertical-align:middle;">
-                            <table cellpadding="0" cellspacing="0" role="presentation"><tr>
-                                <td style="vertical-align:middle; padding-right:12px;">{!! $renderAvatar($member, 44, 17) !!}</td>
-                                <td style="vertical-align:middle;">
-                                    <span class="t-main" style="font-size:15px; font-weight:500; color:{{ $c['text'] }}; display:block;">{{ $member->display_name }}</span>
-                                    <span class="t-muted" style="font-size:13px; color:{{ $c['textMuted'] }};">Joined {{ $member->joined_at->diffForHumans() }}</span>
-                                </td>
-                            </tr></table>
-                        </td></tr>
-                    </table>
-                </td>
-                @php $col++; @endphp
-            @endforeach
-        </tr></table>
+    @foreach ($content->newMembers as $member)
+    <tr><td style="padding-bottom:8px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+            <tr><td class="surface2" style="background-color:{{ $c['surface2'] }}; border-radius:8px; padding:14px 16px; vertical-align:middle;">
+                <table cellpadding="0" cellspacing="0" role="presentation"><tr>
+                    <td style="vertical-align:middle; padding-right:14px;">{!! $renderAvatar($member, 44, 17) !!}</td>
+                    <td style="vertical-align:middle;">
+                        <span class="t-main" style="font-size:15px; font-weight:500; color:{{ $c['text'] }}; display:block;">{{ $member->display_name }}</span>
+                        <span class="t-muted" style="font-size:13px; color:{{ $c['textMuted'] }};">Joined {{ $member->joined_at->diffForHumans() }}</span>
+                    </td>
+                </tr></table>
+            </td></tr>
+        </table>
     </td></tr>
+    @endforeach
 </table>
 @endif
 @break

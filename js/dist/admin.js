@@ -642,13 +642,13 @@ var ServerTab={
     var code=function(t){return m("code",{style:"background:var(--body-bg);padding:2px 6px;border-radius:4px;font-size:12px;font-family:monospace;word-break:break-all;"},t);};
     var tbl_head=["Forum Size","Chunk Size","Workers","Tries","Send Mode","Cron Strategy"];
     var tbl_rows=[
-      ["100\u2013500 members",   "200",   "1", "2", "Single hour",   "One worker, scheduler fires once at send hour"],
-      ["500\u20132,000",         "500",   "1", "3", "Single hour",   "One worker, --max-time=55"],
-      ["2,000\u20135,000",       "1000",  "2", "3", "1\u20132 hr window", "Two workers, window mode recommended"],
-      ["5,000\u201315,000",      "2000",  "3", "3", "2\u20133 hr window", "Three workers, window spans low-traffic hours"],
-      ["15,000\u201350,000",     "5000",  "5", "3", "2\u20134 hr window", "Five workers, overnight window recommended"],
-      ["50,000\u2013100,000",    "7500",  "8", "3", "3\u20134 hr window", "Eight workers, overnight window"],
-      ["100,000+",          "10000", "10","3", "4+ hr window",  "Ten+ workers, maximum window, consider Redis + Supervisor"],
+      ["100\u2013500 members",   "200",   "1", "2", "Single hour",   "One worker, single-hour mode — all subscribers dispatched in one run"],
+      ["500\u20132,000",         "500",   "1", "3", "Single hour",   "One worker, single-hour or short window"],
+      ["2,000\u20135,000",       "1000",  "2", "3", "1\u20132 hr window", "Two workers, 1–2 hour window, ~1,000 users/min"],
+      ["5,000\u201315,000",      "2000",  "3", "3", "2\u20133 hr window", "Three workers, 2–3 hour window, ~2,000 users/min"],
+      ["15,000\u201350,000",     "5000",  "5", "3", "2\u20134 hr window", "Five workers, 2–4 hour window, ~5,000 users/min"],
+      ["50,000\u2013100,000",    "7500",  "8", "3", "3\u20134 hr window", "Eight workers, 3–4 hour window, ~7,500 users/min"],
+      ["100,000+",          "10000", "10","3", "4+ hr window",  "Ten+ workers, 4+ hour window, consider Redis + Supervisor"],
     ];
     return m("div",null,
       m("div",{className:"ExtensionPage-settings"},
@@ -678,7 +678,7 @@ var ServerTab={
           sh("How the Queue Works"),
           notice("\u2699\ufe0f","What happens when a digest runs",
             m("div",null,
-              m("p",{style:"margin:0 0 8px;"},"When the scheduler fires, ",code("digest:send")," queries all eligible users and pushes one job per user onto the queue. Workers (running ",code("queue:work"),") then pull jobs and send the emails. The queue acts as a buffer \u2014 the command and the sending happen independently."),
+              m("p",{style:"margin:0 0 8px;"},"When the scheduler fires, ",code("digest:send")," fetches the next batch of subscribers (up to the configured chunk size), pushes one job per subscriber onto the queue, and exits. The next minute it fires again for the next batch. Workers (running ",code("queue:work"),") drain the queue in parallel as jobs arrive."),
               m("p",{style:"margin:0;"},"This means your forum stays responsive during large sends, failed emails retry automatically, and the process can be parallelised with multiple workers.")
             ),
             "#3b82f6"
@@ -799,7 +799,7 @@ var ServerTab={
           ),
           m("div",{style:"margin-top:12px;padding:12px 16px;background:var(--control-bg);border-radius:8px;"},
             m("p",{style:"margin:0;font-size:12px;color:var(--muted-color);line-height:1.6;"},
-              "\ud83d\udca1 For 50,000+ member forums, consider switching from the database queue driver (",code("blomstra/database-queue"),") to Redis for significantly higher throughput. This requires server-level configuration and is outside the scope of this extension."
+              "\ud83d\udca1 For 50,000+ member forums, consider switching from the database queue driver (",code("blomstra/database-queue"),") to Redis for significantly higher throughput. This requires server-level configuration and is outside the scope of this extension. Send history is retained automatically: 30 daily entries, 52 weekly, 24 monthly."
             )
           )
         )

@@ -288,14 +288,58 @@ class SendDigestCommand extends Command
             $dispatched++;
         }
 
-                // Log the batch.
+                // Log the batch — aggregate into one row per frequency per day.
+        // With window mode dispatching one chunk per minute, we update today's
+        // row rather than inserting a new one for each chunk.
         if (!$isDryRun && $dispatched > 0) {
-            $this->db->table('digest_send_log')->insert([
-                'frequency'     => $frequency,
-                'sent_count'    => $dispatched,
-                'skipped_count' => $skipped,
-                'sent_at'       => Carbon::now('UTC')->toDateTimeString(),
-            ]);
+            $timezone = $this->settings->get('resofire-digest-mail.timezone', 'UTC');
+            $today    = Carbon::now($timezone)->toDateString();
+            $nowUtc   = Carbon::now('UTC')->toDateTimeString();
+
+            $existing = $this->db->table('digest_send_log')
+                ->where('frequency', $frequency)
+                ->where('sent_at', '>=', Carbon::now('UTC')->startOfDay()->toDateTimeString())
+                ->where('sent_at', '<',  Carbon::now('UTC')->startOfDay()->addDay()->toDateTimeString())
+                ->first();
+
+            if ($existing) {
+                $this->db->table('digest_send_log')
+                    ->where('id', $existing->id)
+                    ->update([
+                        'sent_count'    => $existing->sent_count + $dispatched,
+                        'skipped_count' => $existing->skipped_count + $skipped,
+                        'sent_at'       => $nowUtc,
+                    ]);
+            } else {
+                $this->db->table('digest_send_log')->insert([
+                    'frequency'     => $frequency,
+                    'sent_count'    => $dispatched,
+                    'skipped_count' => $skipped,
+                    'sent_at'       => $nowUtc,
+                ]);
+            }
+
+            // Purge old log entries beyond the retention limits.
+            // Daily: 30 rows, Weekly: 52 rows, Monthly: 24 rows.
+            $retention = match ($frequency) {
+                'daily'   => 30,
+                'weekly'  => 52,
+                'monthly' => 24,
+                default   => 30,
+            };
+
+            $keepIds = $this->db->table('digest_send_log')
+                ->where('frequency', $frequency)
+                ->orderBy('sent_at', 'desc')
+                ->limit($retention)
+                ->pluck('id');
+
+            if ($keepIds->isNotEmpty()) {
+                $this->db->table('digest_send_log')
+                    ->where('frequency', $frequency)
+                    ->whereNotIn('id', $keepIds)
+                    ->delete();
+            }
         }
 
         // Window-complete check: if no eligible users remain for this frequency,

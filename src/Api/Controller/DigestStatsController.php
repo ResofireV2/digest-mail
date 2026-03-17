@@ -58,14 +58,14 @@ class DigestStatsController implements RequestHandlerInterface
             $lastSent[$row->digest_frequency] = $row->last_sent;
         }
 
-        // Send log — newest 50, only if table exists
+        // Send log — retention limits are enforced at write time by SendDigestCommand:
+        //   daily: 30 rows, weekly: 52 rows, monthly: 24 rows
         $logExists = $this->db->getSchemaBuilder()->hasTable('digest_send_log');
         $sendLog   = [];
 
         if ($logExists) {
             $rows = $this->db->table('digest_send_log')
                 ->orderBy('sent_at', 'desc')
-                ->limit(50)
                 ->get();
 
             foreach ($rows as $r) {

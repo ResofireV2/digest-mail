@@ -70,9 +70,9 @@ You set the time you want digests to go out — for example 8 a.m. — and the e
 
 ### Single hour vs send window
 
-**Single hour:** All emails start sending at exactly the hour you choose. The extension runs once, processes all subscribers, and finishes. Best for smaller forums.
+**Single hour:** The extension dispatches one chunk of subscribers per scheduler run at the configured hour. For most small forums this means all subscribers are processed in one or two runs within the same minute.
 
-**Send window:** You set a start time and an end time — for example 2 a.m. to 5 a.m. — and the extension spreads sending across that entire window, processing a batch of subscribers every minute until everyone has been sent to. This keeps server load low and steady instead of hitting everything at once. Recommended for forums with more than a few thousand subscribers.
+**Send window:** You set a start time and an end time — for example 2 a.m. to 5 a.m. — and the extension dispatches one chunk of subscribers per minute throughout that window. Each minute the scheduler fires, the next batch is processed and queued. Workers drain each batch in parallel as it arrives. This keeps server load low and steady instead of hitting everything at once. Recommended for forums with more than a few thousand subscribers.
 
 When the send window is active, the extension tracks its own progress automatically. Once all subscribers for a given frequency have been processed, it stops on its own — it does not keep running until the window closes.
 
@@ -85,7 +85,7 @@ Each user picks their own digest frequency from their account settings page:
 - **Monthly** — one email on the configured day of the month
 - **Off** — no digest emails
 
-Admins can restrict which frequencies are available. A low-traffic forum might choose to offer only weekly and monthly and hide the daily option entirely.
+Admins can restrict which frequencies are available. A low-traffic forum might choose to offer only weekly and monthly and hide the daily option entirely. The unsubscribe preference page shown to users automatically reflects whichever options the admin has enabled.
 
 ---
 
@@ -101,7 +101,9 @@ The email uses your forum's configured brand colours throughout — headings, bu
 
 ## Unsubscribe
 
-Every email includes a secure unsubscribe link in the footer. Clicking it takes the subscriber to a preference page where they can choose a different frequency or opt out entirely. The link is unique to each subscriber and is refreshed with every digest send — old links from previous emails stop working once a new digest is sent, which is intentional for security.
+Every email includes a secure unsubscribe link in the footer. Clicking it takes the subscriber to a preference page where they can choose a different frequency or opt out entirely.
+
+The link is unique to each subscriber and valid for 90 days. Unlike some implementations, the link remains valid across multiple digest sends — it is only replaced when it expires or the subscriber uses it to change their preference. This means a user who receives a digest on Monday and clicks the link on Friday will always get a working page.
 
 ---
 
@@ -119,6 +121,8 @@ The admin panel is organised into four tabs.
 
 **Extension Integrations** — enable or disable each optional section individually. A toggle is only activatable when the required extension is installed and enabled in Flarum. Sections that are disabled here are removed from the digest entirely and do not appear in the Digest Order tab.
 
+**Token Checker** — paste any unsubscribe token to verify it is valid, see which user it belongs to, and confirm its expiry date. Useful for diagnosing unsubscribe link issues without sending an email.
+
 ### Digest Order
 
 Arrow-based ordering for all active sections. Changes save immediately and apply to all future digests. Sections that are not currently enabled are not shown here — enable them in the Settings tab first.
@@ -128,9 +132,9 @@ Arrow-based ordering for all active sections. Changes save immediately and apply
 Live statistics pulled from your forum's database:
 
 - **Subscription Overview** — total members, total digest subscribers, and the overall subscription rate as a percentage
-- **Subscribers by Frequency** — how many subscribers are on each frequency, with a visual bar showing the proportion
+- **Subscribers by Frequency** — how many subscribers are on each frequency, with a visual bar and a **View** button that slides open a paginated list of all subscribers for that frequency showing username, avatar, and last sent date
 - **Last Sent** — the date and time each frequency was last sent
-- **Send History** — a log of every batch sent, showing the frequency, how many emails were sent, how many were skipped (no content), and the date and time
+- **Send History** — one entry per frequency per day showing the total sent and skipped count. History is retained automatically: 30 daily entries, 52 weekly entries, and 24 monthly entries
 
 ### Server Settings
 
@@ -139,7 +143,7 @@ Everything related to how the extension uses your server, in one place:
 - **Queue Driver Warning** — an explanation of Flarum's default sync driver and what happens as your subscriber list grows
 - **How the Queue Works** — a plain-language explanation of background job processing, shared data caching, and automatic email retry behaviour
 - **Window Mode** — explains how the send window spreads load over time
-- **Queue Settings** — queue name, chunk size (subscribers per minute), job delay, and maximum retry attempts
+- **Queue Settings** — queue name, chunk size (subscribers dispatched per scheduler run), job delay, and maximum retry attempts
 - **Cron Setup** — ready-to-copy cron lines for the scheduler, queue worker, multiple parallel workers, and optional two-phase pre-population for very large forums
 - **Recommended Settings by Forum Size** — a reference table covering 100 members through 100,000+ with suggested chunk size, worker count, and send mode for each tier
 
@@ -238,7 +242,7 @@ Replace `50 1` with 10 minutes before your configured send window start hour.
 
 ### `digest:send`
 
-The main send command. Runs automatically via the scheduler and applies its own time gate — it only does work when the current time falls within your configured send window or matches your configured send hour.
+The main send command. Runs automatically via the scheduler every minute. Outside the configured send window it exits immediately. Inside the window it dispatches one chunk of subscribers and exits, leaving the rest for the next minute.
 
 ```bash
 # Normal run — respects time gate and window
@@ -282,7 +286,9 @@ The extension is built for efficiency at any subscriber count.
 
 **Lightweight job storage:** Each background job stores only a user ID, frequency, and a reference to the cached shared data — typically under 500 bytes per job. The jobs table stays small and workers stay fast.
 
-**Send window pacing:** With a send window configured, the extension dispatches one batch of subscribers per minute throughout the window rather than all at once. Server load is spread across the window period instead of concentrated in a single minute.
+**Persistent unsubscribe tokens:** Each subscriber's unsubscribe token is generated once and reused across sends. It is only replaced when it expires (90 days) or the subscriber uses it. This ensures unsubscribe links in emails always work, regardless of how many sends have occurred since the email was received.
+
+**Send window pacing:** With a send window configured, the extension dispatches one chunk of subscribers per minute throughout the window. Workers drain each chunk in parallel as it arrives. Server load stays low and steady across the entire window period.
 
 **Recommended settings by forum size:**
 
