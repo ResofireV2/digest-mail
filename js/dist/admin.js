@@ -728,7 +728,7 @@ var ServerTab={
         m("div",{style:"max-width:660px;margin:0 auto;"},
           sh("Cron Setup"),
           notice("\u26a0\ufe0f","This must be configured on your server",
-            "The following cron lines cannot be set from this panel \u2014 they must be added to your server's crontab by whoever manages your hosting. Run "+code("crontab -e")+" on the server and add the lines below.",
+            "The following cron lines cannot be set from this panel \u2014 they must be added to your server's crontab by whoever manages your hosting. Run `crontab -e` on the server and add the lines below.",
             "#f59e0b"
           ),
           m("p",{style:"margin:0 0 12px;font-size:13px;color:var(--muted-color);line-height:1.6;"},
