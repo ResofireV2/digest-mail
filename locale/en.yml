@@ -38,7 +38,7 @@ resofire-digest-mail:
       queue_tries_label: "Max retry attempts"
       queue_tries_help: "How many times a failed digest job will be retried before being moved to the failed jobs table (default 3). Retries use exponential backoff: 30s, 60s, 120s. Note: if you have blomstra/database-queue installed, it has its own Retries setting — the lower of the two values will effectively apply. Recommended to set both extension settings to the same value."
       queue_name_label: "Queue name"
-      queue_name_help: "The named queue digest jobs are pushed onto. Must match the --queue argument in your queue:work cron. Default: digest."
+      queue_name_help: "The named queue digest jobs are pushed onto. Must match the --queue argument in your queue:work cron. Default: default."
       limit_members_label: "New Members — max items"
       limit_members_help: "Maximum number of new members to show in each digest."
 

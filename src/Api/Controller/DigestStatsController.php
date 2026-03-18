@@ -2,7 +2,6 @@
 
 namespace Resofire\DigestMail\Api\Controller;
 
-use Flarum\Foundation\Paths;
 use Flarum\Http\RequestUtil;
 use Flarum\User\Exception\PermissionDeniedException;
 use Illuminate\Database\ConnectionInterface;
@@ -15,7 +14,6 @@ class DigestStatsController implements RequestHandlerInterface
 {
     public function __construct(
         private ConnectionInterface $db,
-        private Paths               $paths,
     ) {}
 
     public function handle(ServerRequestInterface $request): ResponseInterface
@@ -89,10 +87,6 @@ class DigestStatsController implements RequestHandlerInterface
             ],
             'last_sent' => $lastSent,
             'send_log'  => $sendLog,
-            // Filesystem path to the Flarum root — used by the admin panel to
-            // generate copy-ready cron lines. Only returned to admins (enforced
-            // above). Never exposed via the public ForumSerializer.
-            'base_path' => $this->paths->base,
         ]);
     }
 }
