@@ -796,10 +796,36 @@ var ServerTab={
           // Queue type toggle
           m("div",{style:"display:flex;align-items:center;gap:8px;margin-bottom:20px;"},
             m("span",{style:"font-size:12px;font-weight:600;color:var(--muted-color);margin-right:4px;"},"Queue backend:"),
+            toggleBtn("Sync (default)","sync"),
             toggleBtn("Database Queue","database"),
             toggleBtn("Redis / Valkey","redis"),
             pathBadge
           ),
+          // ---- SYNC MODE --------------------------------------------------
+          s.queueType==="sync"?m("div",null,
+            notice("✅","No special setup required for Sync",
+              m("div",null,
+                m("p",{style:"margin:0 0 8px;"},"Flarum's default ",code("sync")," driver processes jobs inline during the web request. No cron worker, no Supervisor, and no queue backend is needed. The scheduler cron line below is still required so the extension knows when to send."),
+                m("p",{style:"margin:0;"},"Sync works fine for small forums. Once your subscriber count grows it will cause slow page loads and timeouts — see the Queue Driver Warning at the top of this page for thresholds.")
+              ),
+              "#10b981"
+            ),
+            cronBlock("1. Flarum Scheduler — the only cron line you need",lineScheduler),
+            m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
+              "That's it. When the scheduler fires, ",code("digest:send")," runs, builds each email, and sends it directly in the same process. No separate worker step."
+            ),
+            notice("⚠️","When to switch away from Sync",
+              m("div",null,
+                m("p",{style:"margin:0 0 6px;"},"Switch to the Database Queue driver (",code("blomstra/database-queue"),") when:"),
+                m("ul",{style:"margin:0;padding-left:18px;"},
+                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},"You have more than ~50 digest subscribers"),
+                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},"You notice post submissions feeling slow around your digest send time"),
+                  m("li",{style:"margin-bottom:0;line-height:1.5;"},"You see timeout errors in your Flarum error log on send days")
+                )
+              ),
+              "#f59e0b"
+            )
+          ):null,
           // ---- DATABASE MODE -----------------------------------------------
           s.queueType==="database"?m("div",null,
             cronBlock("1. Flarum Scheduler \u2014 required for all extensions",lineScheduler),
