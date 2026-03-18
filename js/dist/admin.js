@@ -847,24 +847,26 @@ var ServerTab={
           // ---- REDIS / VALKEY MODE -----------------------------------------
           s.queueType==="redis"?m("div",null,
             cronBlock("1. Flarum Scheduler \u2014 required, unchanged for Redis",lineScheduler),
+            cronBlock("2. Queue Worker",lineWorker),
             m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
-              "The scheduler cron line is identical regardless of queue backend. It only triggers ",code("digest:send")," to push jobs \u2014 it does not process them."
+              "The cron worker setup is identical to the database queue. Redis is the backend — the commands you run are the same. ",
+              code("--max-time=55")," still works fine with Redis for digest mail: the worker connects, drains jobs for 55 seconds via ",code("BLPOP"),", then exits cleanly before the next cron tick."
             ),
-            notice("\uD83D\uDCA1","Workers are managed by Supervisor, not cron",
+            cronBlock("3. Optional \u2014 Two-Phase Pre-Population (50,000+ forums only)",lineEnqueue),
+            m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
+              "Replace ",code("50 12")," with 10 minutes before your window start. Works identically with Redis \u2014 jobs are pushed to the Redis list, workers drain them as usual."
+            ),
+            notice("\uD83D\uDCA1","Optional upgrade: Supervisor for persistent workers",
               m("div",null,
-                m("p",{style:"margin:0 0 8px;"},"With Redis, workers use ",code("BLPOP")," to block-wait for jobs. They should run as persistent daemons under Supervisor rather than being spawned by cron every minute. Remove your ",code("queue:work")," cron line if you have one and use the Supervisor config below instead."),
-                m("p",{style:"margin:0;"},"Supervisor restarts workers automatically if they crash and keeps exactly the right number running at all times.")
+                m("p",{style:"margin:0 0 8px;"},"For high-traffic forums where the ",code("default")," queue handles real-time notifications all day, you can replace the cron worker with a Supervisor daemon. Persistent workers use ",code("BLPOP")," to react in milliseconds rather than waiting for the next cron tick, and Supervisor restarts them automatically if they crash."),
+                m("p",{style:"margin:0 0 8px;"},"For digest mail alone this makes no practical difference \u2014 digests run once a day and either approach drains the queue at the same rate."),
+                m("p",{style:"margin:0;"},"If you do want Supervisor, save the config below to ",code("/etc/supervisor/conf.d/flarum-worker.conf")," and remove your ",code("queue:work")," cron line, then run: ",code("supervisorctl reread && supervisorctl update && supervisorctl start flarum-worker:*"))
               ),
               "#6366f1"
             ),
-            cronBlock("2. Supervisor Config \u2014 save as /etc/supervisor/conf.d/flarum-worker.conf",supervisorConf),
-            m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
-              "After saving the file run: ",code("supervisorctl reread && supervisorctl update && supervisorctl start flarum-worker:*"),
-              ". Adjust ",code("numprocs")," to match your worker count and ",code("user")," to your web server user."
-            ),
-            cronBlock("3. Optional \u2014 Two-Phase Pre-Population (50,000+ forums only)",lineEnqueue),
+            cronBlock("Supervisor Config \u2014 optional, replaces the queue:work cron line",supervisorConf),
             m("p",{style:"margin:-8px 0 0;font-size:12px;color:var(--muted-color);"},
-              "Replace ",code("50 12")," with 10 minutes before your window start. Works identically with Redis \u2014 jobs are pushed to Redis list, workers drain them as usual."
+              "Adjust ",code("numprocs")," to match your worker count and ",code("user")," to your web server user (",code("www-data"),", ",code("nginx"),", or ",code("apache")," depending on your setup)."
             )
           ):null
         )
