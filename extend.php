@@ -210,7 +210,7 @@ return [
         ->default('resofire-digest-mail.enable_reactions',   '1')
         ->default('resofire-digest-mail.enable_awards',      '1')
         ->default('resofire-digest-mail.limit_favorites',    '6')
-        ->default('resofire-digest-mail.queue_name',         'default')
+        ->default('resofire-digest-mail.queue_name',         'digest')
         ->default('resofire-digest-mail.queue_chunk_size',   '200')
         ->default('resofire-digest-mail.queue_delay',        '0')
         ->default('resofire-digest-mail.queue_tries',        '3')

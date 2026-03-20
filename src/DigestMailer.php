@@ -138,7 +138,7 @@ class DigestMailer
             $forumTitle  = $this->settings->get('forum_title', 'Forum');
             $subject     = "{$forumTitle} — Your {$content->frequencyLabel()} Digest";
 
-            $fromAddress = $this->settings->get('mail_from', 'noreply@' . parse_url($this->url->to('forum')->base(), PHP_URL_HOST));
+            $fromAddress = $this->settings->get('mail_from_address', 'noreply@' . parse_url($this->url->to('forum')->base(), PHP_URL_HOST));
             $fromName    = $this->settings->get('mail_from_name', $forumTitle);
 
             $secondaryHex = $this->settings->get('theme_secondary_color', '#4f46e5');
