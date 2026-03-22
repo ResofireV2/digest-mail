@@ -160,6 +160,9 @@ return [
                     'nightmode' => [
                         'enabled' => $manager->isEnabled('fof-nightmode'),
                     ],
+                    'cosmos-theme' => [
+                        'enabled' => $manager->isEnabled('resofire-cosmos-theme'),
+                    ],
                     'gamepedia' => [
                         'enabled'  => $manager->isEnabled('huseyinfiliz-gamepedia'),
                         'title'    => 'Gamepedia',

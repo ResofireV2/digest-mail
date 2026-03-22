@@ -2,6 +2,7 @@
 
 namespace Resofire\DigestMail;
 
+use Flarum\Extension\ExtensionManager;
 use Flarum\Http\UrlGenerator;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
@@ -16,20 +17,27 @@ class DigestMailer
         private UrlGenerator                $url,
         private SettingsRepositoryInterface $settings,
         private Translator                  $translator,
+        private ExtensionManager            $extensions,
     ) {}
 
     /**
      * Resolve the effective email theme for a user.
      *
-     * fofNightMode preference values:
-     *   0 (or null) = follow system → 'auto' (CSS media queries)
-     *   1           = force light   → 'light'
-     *   2           = force dark    → 'dark'
+     * Checks theme extensions in priority order:
      *
-     * Falls back to the forum-wide fof-nightmode.default_theme setting,
-     * then to 'auto' if Night Mode is not installed.
+     *   1. fof/nightmode (if enabled)
+     *        fofNightMode preference: 0/null = auto, 1 = light, 2 = dark
+     *        Falls back to fof-nightmode.default_theme forum setting.
+     *        If fofNightMode_perDevice is set the pref lives in a cookie
+     *        we can't read server-side, so we fall back to the forum default.
      *
-     * A $themeOverride of 'light' or 'dark' bypasses user preference entirely
+     *   2. Cosmos Theme (if enabled and fof/nightmode is not)
+     *        cosmosTheme preference: 0/null = auto, 1 = light (Day), 2 = dark (Night)
+     *        Falls back to cosmos-theme.default_theme forum setting.
+     *
+     *   3. 'auto' — neither extension is enabled.
+     *
+     * A $themeOverride of 'light' or 'dark' bypasses all of the above
      * (used by the admin test-send panel).
      */
     public function resolveTheme(User $user, ?string $themeOverride = null): string
@@ -38,23 +46,43 @@ class DigestMailer
             return $themeOverride;
         }
 
-        $pref = $user->getPreference('fofNightMode');
+        // --- fof/nightmode ---
+        if ($this->extensions->isEnabled('fof-nightmode')) {
+            $pref = $user->getPreference('fofNightMode');
 
-        // If per-device mode is on the preference is stored in a cookie we
-        // can't read server-side — fall back to the forum default.
-        if ($user->getPreference('fofNightMode_perDevice')) {
-            $pref = null;
+            // If per-device mode is on the preference is stored in a cookie we
+            // can't read server-side — fall back to the forum default.
+            if ($user->getPreference('fofNightMode_perDevice')) {
+                $pref = null;
+            }
+
+            if ($pref === null) {
+                $pref = (int) $this->settings->get('fof-nightmode.default_theme', 0);
+            }
+
+            return match ((int) $pref) {
+                1       => 'light',
+                2       => 'dark',
+                default => 'auto',
+            };
         }
 
-        if ($pref === null) {
-            $pref = (int) $this->settings->get('fof-nightmode.default_theme', 0);
+        // --- Cosmos Theme ---
+        if ($this->extensions->isEnabled('resofire-cosmos-theme')) {
+            $pref = $user->getPreference('cosmosTheme');
+
+            if ($pref === null || $pref === '') {
+                $pref = (int) $this->settings->get('cosmos-theme.default_theme', 0);
+            }
+
+            return match ((int) $pref) {
+                1       => 'light',
+                2       => 'dark',
+                default => 'auto',
+            };
         }
 
-        return match ((int) $pref) {
-            1       => 'light',
-            2       => 'dark',
-            default => 'auto',
-        };
+        return 'auto';
     }
 
     /**
