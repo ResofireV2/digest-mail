@@ -774,7 +774,7 @@ var ServerTab={
             m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},"Queue Name"),
             m("p",{className:"helpText",style:"margin-bottom:6px;"},"The named queue digest jobs are pushed onto. Your ",code("queue:work")," cron must include this name. Default: ",code("digest"),"."),
             m("div",{style:"display:flex;align-items:center;gap:8px;"},
-              m("input",{className:"FormControl",type:"text",value:getSettingVal("resofire-digest-mail.queue_name","digest"),style:"width:200px;",
+              m("input",{className:"FormControl",type:"text",value:s.queueName,style:"width:200px;",
                 oninput:function(e){s.queueName=e.target.value;},
                 onblur:function(e){saveSetting("resofire-digest-mail.queue_name",e.target.value.trim()||"digest");}
               })
