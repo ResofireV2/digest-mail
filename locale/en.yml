@@ -26,7 +26,7 @@ resofire-digest-mail:
       limit_pickem_label: "Pick'em — max items per section"
       limit_pickem_help: "Maximum number of upcoming matches, recent results, and leaderboard entries to show in the digest (default 5, min 3). Requires huseyinfiliz/pickem."
       limit_gamepedia_label: "Gamepedia — max games per section"
-      limit_gamepedia_help: "Maximum number of games to show in the Most Discussed and Newly Added sections (default 5, min 3). Requires huseyinfiliz/gamepedia."
+      limit_gamepedia_help: "Maximum number of games to show in the Most Discussed, Newly Added, and Top Genres sections (default 5, min 3). Requires resofire/gamepedia."
       limit_favorites_label: "Favorite Discussions — max items"
       limit_favorites_help: "Maximum number of favorite discussions to show, ranked by likes/reactions during the period (default 6, min 3). Set to 0 to disable. Uses fof/reactions if enabled, otherwise flarum/likes."
       enable_awards_label: "Awards"

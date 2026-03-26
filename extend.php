@@ -179,7 +179,7 @@ return [
                                 'enabled' => false,
                             ],
                             'gamepedia' => [
-                                'enabled'  => $manager->isEnabled('huseyinfiliz-gamepedia'),
+                                'enabled'  => $manager->isEnabled('resofire-gamepedia'),
                                 'title'    => 'Gamepedia',
                                 'iconName' => 'fas fa-gamepad',
                                 'iconColor'=> '#ffffff',

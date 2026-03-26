@@ -62,10 +62,14 @@ class DigestContent
         public readonly array $pickem = [],
 
         /**
-         * Gamepedia section data.
+         * Gamepedia section data (resofire/gamepedia 2.x).
          *   enabled        bool
-         *   mostDiscussed  array of [ game, postCount, discussionCount ]
-         *   newGames       array of game objects added this period
+         *   mostDiscussed  array of [ game (stdClass with cover_image_url,
+         *                             developer, publisher, first_release_date),
+         *                             postCount, discussionCount,
+         *                             genres (array of stdClass) ]
+         *   newGames       array of stdClass — each has genres array attached
+         *   topGenres      array of [ genre (stdClass), gameCount, postCount ]
          */
         public readonly array $gamepedia = [],
 

@@ -80,6 +80,7 @@
     $gpEnabled       = !empty($gp) && ($gp['enabled'] ?? false);
     $gpMostDiscussed = $gpEnabled ? ($gp['mostDiscussed'] ?? []) : [];
     $gpNewGames      = $gpEnabled ? ($gp['newGames']      ?? []) : [];
+    $gpTopGenres     = $gpEnabled ? ($gp['topGenres']     ?? []) : [];
     $gpForumUrl      = rtrim($forumUrl, '/') . '/gamepedia';
 
     $favEntries      = $content->favorites ?? [];
@@ -89,10 +90,10 @@
     $awAwards        = $awEnabled ? ($aw['awards'] ?? []) : [];
     $awForumUrl      = rtrim($forumUrl, '/') . '/awards';
 
-    // Build an IGDB cover URL from a cover_image_id
-    $gpCoverUrl = function (?string $imageId) : ?string {
-        if (!$imageId) return null;
-        return 'https://images.igdb.com/igdb/image/upload/t_cover_big/' . $imageId . '.jpg';
+    // Gamepedia cover URL — new schema stores the full URL directly on the game row.
+    // Falls back gracefully if cover_image_url is absent.
+    $gpCoverUrl = function (mixed $game) : ?string {
+        return !empty($game->cover_image_url) ? $game->cover_image_url : null;
     };
 
     $periodWord = $content->frequency === 'daily' ? 'day' : ($content->frequency === 'weekly' ? 'week' : 'month');
@@ -697,7 +698,7 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
 
 @case('gamepedia')
 {{-- ── GAMEPEDIA ──────────────────────────────────────────────────────────── --}}
-@if ($gpEnabled && (!empty($gpMostDiscussed) || !empty($gpNewGames)))
+@if ($gpEnabled && (!empty($gpMostDiscussed) || !empty($gpNewGames) || !empty($gpTopGenres)))
 {!! $sectionDivider() !!}
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:36px;">
     <tr><td>{!! $sectionHeader('Gamepedia') !!}</td></tr>
@@ -714,8 +715,9 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
             @if ($gpMdCol % 3 === 0 && $gpMdCol > 0) </tr><tr> @endif
             @php
                 $game     = $entry['game'];
-                $coverUrl = $gpCoverUrl($game->cover_image_id ?? null);
+                $coverUrl = $gpCoverUrl($game);
                 $gameUrl  = rtrim($forumUrl, '/') . '/gamepedia/' . e($game->slug);
+                $gameGenres = $entry['genres'] ?? [];
             @endphp
             <td width="33%" style="padding:5px; vertical-align:top;">
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:{{ $c['surface2'] }}; border:1px solid {{ $c['border'] }}; border-radius:10px; overflow:hidden;">
@@ -730,6 +732,9 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
                     </td></tr>
                     <tr><td style="padding:10px 10px 12px; text-align:center;">
                         <div style="font-size:15px; font-weight:700; color:{{ $c['text'] }}; line-height:1.35; margin-bottom:3px;">{{ $game->name }}</div>
+                        @if (!empty($gameGenres))
+                        <div style="font-size:10px; color:{{ $c['textMuted'] }}; margin-bottom:4px;">{{ implode(' · ', array_map(fn($g) => e($g->name), array_slice($gameGenres, 0, 2))) }}</div>
+                        @endif
                         <div style="font-size:11px; color:{{ $c['textMuted'] }};">{{ $entry['postCount'] }} {{ $entry['postCount'] === 1 ? 'post' : 'posts' }}</div>
                     </td></tr>
                 </table>
@@ -751,8 +756,9 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
         @foreach ($gpNewGames as $game)
             @if ($gpNgCol % 3 === 0 && $gpNgCol > 0) </tr><tr> @endif
             @php
-                $coverUrl = $gpCoverUrl($game->cover_image_id ?? null);
-                $gameUrl  = rtrim($forumUrl, '/') . '/gamepedia/' . e($game->slug);
+                $coverUrl   = $gpCoverUrl($game);
+                $gameUrl    = rtrim($forumUrl, '/') . '/gamepedia/' . e($game->slug);
+                $gameGenres = $game->genres ?? [];
             @endphp
             <td width="33%" style="padding:5px; vertical-align:top;">
                 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:{{ $c['surface2'] }}; border:1px solid {{ $c['border'] }}; border-radius:10px; overflow:hidden;">
@@ -766,13 +772,44 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
                         </a>
                     </td></tr>
                     <tr><td style="padding:10px 10px 12px; text-align:center;">
-                        <div style="font-size:15px; font-weight:700; color:{{ $c['text'] }}; line-height:1.35;">{{ $game->name }}</div>
+                        <div style="font-size:15px; font-weight:700; color:{{ $c['text'] }}; line-height:1.35; margin-bottom:3px;">{{ $game->name }}</div>
+                        @if (!empty($gameGenres))
+                        <div style="font-size:10px; color:{{ $c['textMuted'] }};">{{ implode(' · ', array_map(fn($g) => e($g->name), array_slice($gameGenres, 0, 2))) }}</div>
+                        @endif
                     </td></tr>
                 </table>
             </td>
             @php $gpNgCol++; @endphp
         @endforeach
         </tr></table>
+    </td></tr>
+    @endif
+
+    {{-- Top genres --}}
+    @if (!empty($gpTopGenres))
+    <tr><td style="padding:{{ (!empty($gpMostDiscussed) || !empty($gpNewGames)) ? '28px' : '0px' }} 0 16px;">
+        <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; text-align:center; color:{{ $c['textMuted'] }};">Top Genres This {{ ucfirst($periodWord) }}</p>
+    </td></tr>
+    <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+        @foreach ($gpTopGenres as $i => $genreEntry)
+            @php
+                $genre     = $genreEntry['genre'];
+                $genreUrl  = rtrim($forumUrl, '/') . '/gamepedia?genre=' . e($genre->slug);
+                $bg        = $i % 2 === 0 ? $c['surface'] : $c['surface2'];
+            @endphp
+            <tr style="background:{{ $bg }};">
+                <td style="padding:10px 14px; font-size:14px; font-weight:600; color:{{ $c['text'] }};">
+                    <a href="{{ $genreUrl }}" style="color:{{ $c['text'] }}; text-decoration:none;">{{ e($genre->name) }}</a>
+                </td>
+                <td style="padding:10px 14px; font-size:13px; color:{{ $c['textMuted'] }}; text-align:right; white-space:nowrap;">
+                    {{ $genreEntry['gameCount'] }} {{ $genreEntry['gameCount'] === 1 ? 'game' : 'games' }}
+                    &nbsp;·&nbsp;
+                    {{ $genreEntry['postCount'] }} {{ $genreEntry['postCount'] === 1 ? 'post' : 'posts' }}
+                </td>
+            </tr>
+        @endforeach
+        </table>
     </td></tr>
     @endif
 
