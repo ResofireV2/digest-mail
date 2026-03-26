@@ -2,7 +2,6 @@
 
 namespace Resofire\DigestMail;
 
-use Flarum\Extension\ExtensionManager;
 use Flarum\Http\UrlGenerator;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
@@ -17,25 +16,24 @@ class DigestMailer
         private UrlGenerator                $url,
         private SettingsRepositoryInterface $settings,
         private Translator                  $translator,
-        private ExtensionManager            $extensions,
     ) {}
 
     /**
      * Resolve the effective email theme for a user.
      *
-     * Checks theme extensions in priority order:
+     * Uses Flarum 2.x's built-in color scheme system:
      *
-     *   1. fof/nightmode (if enabled)
-     *        fofNightMode preference: 0/null = auto, 1 = light, 2 = dark
-     *        Falls back to fof-nightmode.default_theme forum setting.
-     *        If fofNightMode_perDevice is set the pref lives in a cookie
-     *        we can't read server-side, so we fall back to the forum default.
+     *   Forum setting 'color_scheme' (set by admin in Appearance):
+     *     'light'    → force light for all emails
+     *     'dark'     → force dark for all emails
+     *     'light-hc' → treat as light
+     *     'dark-hc'  → treat as dark
+     *     'auto'     → defer to the user's own preference
      *
-     *   2. Cosmos Theme (if enabled and fof/nightmode is not)
-     *        cosmosTheme preference: 0/null = auto, 1 = light (Day), 2 = dark (Night)
-     *        Falls back to cosmos-theme.default_theme forum setting.
-     *
-     *   3. 'auto' — neither extension is enabled.
+     *   When the forum is set to 'auto', the user preference 'colorScheme'
+     *   is checked with the same value mapping. If the user preference is
+     *   also 'auto' or unset, we return 'auto' (the Blade template renders
+     *   a self-contained light email in that case).
      *
      * A $themeOverride of 'light' or 'dark' bypasses all of the above
      * (used by the admin test-send panel).
@@ -46,43 +44,33 @@ class DigestMailer
             return $themeOverride;
         }
 
-        // --- fof/nightmode ---
-        if ($this->extensions->isEnabled('fof-nightmode')) {
-            $pref = $user->getPreference('fofNightMode');
+        $forumScheme = $this->settings->get('color_scheme', 'auto');
 
-            // If per-device mode is on the preference is stored in a cookie we
-            // can't read server-side — fall back to the forum default.
-            if ($user->getPreference('fofNightMode_perDevice')) {
-                $pref = null;
-            }
-
-            if ($pref === null) {
-                $pref = (int) $this->settings->get('fof-nightmode.default_theme', 0);
-            }
-
-            return match ((int) $pref) {
-                1       => 'light',
-                2       => 'dark',
-                default => 'auto',
-            };
+        // If the admin has locked the forum to a specific scheme, honour it.
+        if ($forumScheme !== 'auto') {
+            return $this->schemeToTheme($forumScheme);
         }
 
-        // --- Cosmos Theme ---
-        if ($this->extensions->isEnabled('resofire-cosmos-theme')) {
-            $pref = $user->getPreference('cosmosTheme');
+        // Forum is set to auto — use the individual user's preference.
+        $userScheme = $user->getPreference('colorScheme', 'auto');
 
-            if ($pref === null || $pref === '') {
-                $pref = (int) $this->settings->get('cosmos-theme.default_theme', 0);
-            }
+        return $this->schemeToTheme($userScheme);
+    }
 
-            return match ((int) $pref) {
-                1       => 'light',
-                2       => 'dark',
-                default => 'auto',
-            };
-        }
-
-        return 'auto';
+    /**
+     * Map a Flarum 2.x color scheme value to the email theme string.
+     *
+     * 'light' and 'light-hc' → 'light'
+     * 'dark'  and 'dark-hc'  → 'dark'
+     * anything else (including 'auto') → 'auto'
+     */
+    private function schemeToTheme(mixed $scheme): string
+    {
+        return match ((string) $scheme) {
+            'light', 'light-hc' => 'light',
+            'dark',  'dark-hc'  => 'dark',
+            default             => 'auto',
+        };
     }
 
     /**

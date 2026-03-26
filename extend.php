@@ -173,10 +173,10 @@ return [
                                 'iconBg'          => '#16a34a',
                             ],
                             'nightmode' => [
-                                'enabled' => $manager->isEnabled('fof-nightmode'),
+                                'enabled' => false,
                             ],
                             'cosmos-theme' => [
-                                'enabled' => $manager->isEnabled('resofire-cosmos-theme'),
+                                'enabled' => false,
                             ],
                             'gamepedia' => [
                                 'enabled'  => $manager->isEnabled('huseyinfiliz-gamepedia'),
