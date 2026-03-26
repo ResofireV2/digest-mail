@@ -7,12 +7,11 @@ use Resofire\DigestMail\Api\Controller\SendTestDigestController;
 use Resofire\DigestMail\Console\SendDigestCommand;
 use Resofire\DigestMail\Console\EnqueueDigestCommand;
 use Resofire\DigestMail\Controller\UnsubscribeController;
-use Resofire\DigestMail\Listener\SaveDigestFrequency;
-use Flarum\Api\Serializer\CurrentUserSerializer;
-use Flarum\Api\Serializer\ForumSerializer;
+use Flarum\Api\Context;
+use Flarum\Api\Resource;
+use Flarum\Api\Schema;
 use Flarum\Extend;
 use Flarum\Extension\ExtensionManager;
-use Flarum\User\Event\Saving;
 use Flarum\User\User;
 
 return [
@@ -112,97 +111,109 @@ return [
         ),
 
     // -------------------------------------------------------------------------
-    // Expose digestFrequency on the current-user API payload
+    // Expose digestFrequency on the user resource
     //
     // The forum JS reads this attribute when the settings page mounts so it
     // can pre-select the correct option in the frequency dropdown.
     //
-    // CurrentUserSerializer extends UserSerializer, so this attribute is only
-    // present on the /api/users/me (or equivalent) response — not on every
-    // user object returned in discussion lists etc.
+    // The field is writable on update (PATCH /api/users/{id}) — persistence is
+    // handled automatically by AbstractDatabaseResource::setValue(), which maps
+    // the camelCase field name to the snake_case model attribute
+    // (digestFrequency → digest_frequency) and calls $user->save().
+    //
+    // Permission: users may only write their own preference; admins may write
+    // any user's preference. This mirrors the logic previously in
+    // SaveDigestFrequency.
     // -------------------------------------------------------------------------
-    (new Extend\ApiSerializer(CurrentUserSerializer::class))
-        ->attribute(
-            'digestFrequency',
-            fn ($serializer, User $user) => $user->digest_frequency
-        ),
+    (new Extend\ApiResource(Resource\UserResource::class))
+        ->fields(fn () => [
+            Schema\Str::make('digestFrequency')
+                ->nullable()
+                ->get(fn (User $user) => $user->digest_frequency)
+                ->writable(fn (User $user, Context $context) =>
+                    $context->getActor()->id === $user->id || $context->getActor()->isAdmin()
+                )
+                ->in(['daily', 'weekly', 'monthly']),
+        ]),
 
     // Expose optional-integration availability to the admin JS so toggles
     // can be grayed out when an integration extension is not installed.
-    (new Extend\ApiSerializer(ForumSerializer::class))
-        ->attribute(
-            'digestExtensions',
-            function ($serializer) {
-                /** @var ExtensionManager $manager */
-                $manager = resolve(ExtensionManager::class);
-                return [
-                    'leaderboard' => [
-                        'enabled'         => $manager->isEnabled('huseyinfiliz-leaderboard'),
-                        'title'           => 'Leaderboard',
-                        'iconName'        => 'fas fa-trophy',
-                        'iconColor'       => '#ffffff',
-                        'iconBg'          => '#3498db',
-                    ],
-                    'badges' => [
-                        'enabled'         => $manager->isEnabled('fof-badges'),
-                        'title'           => 'Badges',
-                        'iconName'        => 'fas fa-award',
-                        'iconColor'       => '#ffffff',
-                        'iconBg'          => '#8b5cf6',
-                    ],
-                    'pickem' => [
-                        'enabled'         => $manager->isEnabled('huseyinfiliz-pickem'),
-                        'title'           => "Pick'em",
-                        'iconName'        => 'fas fa-football-ball',
-                        'iconColor'       => '#ffffff',
-                        'iconBg'          => '#16a34a',
-                    ],
-                    'nightmode' => [
-                        'enabled' => $manager->isEnabled('fof-nightmode'),
-                    ],
-                    'cosmos-theme' => [
-                        'enabled' => $manager->isEnabled('resofire-cosmos-theme'),
-                    ],
-                    'gamepedia' => [
-                        'enabled'  => $manager->isEnabled('huseyinfiliz-gamepedia'),
-                        'title'    => 'Gamepedia',
-                        'iconName' => 'fas fa-gamepad',
-                        'iconColor'=> '#ffffff',
-                        'iconBg'   => '#e85d04',
-                    ],
-                    'likes' => [
-                        'enabled' => $manager->isEnabled('flarum-likes'),
-                    ],
-                    'reactions' => [
-                        'enabled'  => $manager->isEnabled('fof-reactions'),
-                        'title'    => 'Reactions',
-                        'iconName' => 'fas fa-smile',
-                        'iconColor'=> '#ffffff',
-                        'iconBg'   => '#f59e0b',
-                    ],
-                    'awards' => [
-                        'enabled'  => $manager->isEnabled('huseyinfiliz-awards'),
-                        'title'    => 'Awards',
-                        'iconName' => 'fas fa-star',
-                        'iconColor'=> '#ffffff',
-                        'iconBg'   => '#f59e0b',
-                    ],
-                ];
-            }
-        )
-        ->attribute(
-            'digestAllowedFrequencies',
-            function ($serializer) {
-                /** @var \Flarum\Settings\SettingsRepositoryInterface $settings */
-                $settings = resolve(\Flarum\Settings\SettingsRepositoryInterface::class);
-                $raw = fn(string $key, string $fallback) => ($v = $settings->get($key)) === null || $v === '' ? $fallback : $v;
-                return [
-                    'daily'   => $raw('resofire-digest-mail.allow_daily',   '0') === '1',
-                    'weekly'  => $raw('resofire-digest-mail.allow_weekly',  '1') === '1',
-                    'monthly' => $raw('resofire-digest-mail.allow_monthly', '1') === '1',
-                ];
-            }
-        ),
+    (new Extend\ApiResource(Resource\ForumResource::class))
+        ->fields(function () {
+            /** @var ExtensionManager $manager */
+            $manager = resolve(ExtensionManager::class);
+
+            /** @var \Flarum\Settings\SettingsRepositoryInterface $settings */
+            $settings = resolve(\Flarum\Settings\SettingsRepositoryInterface::class);
+            $raw = fn(string $key, string $fallback) => ($v = $settings->get($key)) === null || $v === '' ? $fallback : $v;
+
+            return [
+                Schema\Arr::make('digestExtensions')
+                    ->get(function () use ($manager) {
+                        return [
+                            'leaderboard' => [
+                                'enabled'         => $manager->isEnabled('huseyinfiliz-leaderboard'),
+                                'title'           => 'Leaderboard',
+                                'iconName'        => 'fas fa-trophy',
+                                'iconColor'       => '#ffffff',
+                                'iconBg'          => '#3498db',
+                            ],
+                            'badges' => [
+                                'enabled'         => $manager->isEnabled('fof-badges'),
+                                'title'           => 'Badges',
+                                'iconName'        => 'fas fa-award',
+                                'iconColor'       => '#ffffff',
+                                'iconBg'          => '#8b5cf6',
+                            ],
+                            'pickem' => [
+                                'enabled'         => $manager->isEnabled('huseyinfiliz-pickem'),
+                                'title'           => "Pick'em",
+                                'iconName'        => 'fas fa-football-ball',
+                                'iconColor'       => '#ffffff',
+                                'iconBg'          => '#16a34a',
+                            ],
+                            'nightmode' => [
+                                'enabled' => $manager->isEnabled('fof-nightmode'),
+                            ],
+                            'cosmos-theme' => [
+                                'enabled' => $manager->isEnabled('resofire-cosmos-theme'),
+                            ],
+                            'gamepedia' => [
+                                'enabled'  => $manager->isEnabled('huseyinfiliz-gamepedia'),
+                                'title'    => 'Gamepedia',
+                                'iconName' => 'fas fa-gamepad',
+                                'iconColor'=> '#ffffff',
+                                'iconBg'   => '#e85d04',
+                            ],
+                            'likes' => [
+                                'enabled' => $manager->isEnabled('flarum-likes'),
+                            ],
+                            'reactions' => [
+                                'enabled'  => $manager->isEnabled('fof-reactions'),
+                                'title'    => 'Reactions',
+                                'iconName' => 'fas fa-smile',
+                                'iconColor'=> '#ffffff',
+                                'iconBg'   => '#f59e0b',
+                            ],
+                            'awards' => [
+                                'enabled'  => $manager->isEnabled('huseyinfiliz-awards'),
+                                'title'    => 'Awards',
+                                'iconName' => 'fas fa-star',
+                                'iconColor'=> '#ffffff',
+                                'iconBg'   => '#f59e0b',
+                            ],
+                        ];
+                    }),
+                Schema\Arr::make('digestAllowedFrequencies')
+                    ->get(function () use ($raw) {
+                        return [
+                            'daily'   => $raw('resofire-digest-mail.allow_daily',   '0') === '1',
+                            'weekly'  => $raw('resofire-digest-mail.allow_weekly',  '1') === '1',
+                            'monthly' => $raw('resofire-digest-mail.allow_monthly', '1') === '1',
+                        ];
+                    }),
+            ];
+        }),
 
     // Settings defaults — returned by Flarum before the admin saves for the
     // first time, so the extension behaves sensibly out of the box.
@@ -228,17 +239,4 @@ return [
         ->default('resofire-digest-mail.weekly_day',         '1')
         ->default('resofire-digest-mail.monthly_day',        '1'),
 
-    // -------------------------------------------------------------------------
-    // Persist digestFrequency via the existing PATCH /api/users/{id} endpoint
-    //
-    // The User\Event\Saving event is fired by EditUserHandler after it has
-    // applied all the standard attribute changes but before it calls
-    // $user->save(). Our listener reads 'digestFrequency' from $event->data
-    // (the raw JSON:API attributes payload), validates it, and writes it to
-    // $user->digest_frequency. Because $user is passed by reference through
-    // the event, the value is automatically persisted by the handler's
-    // subsequent $user->save() call — no extra save() needed here.
-    // -------------------------------------------------------------------------
-    (new Extend\Event)
-        ->listen(Saving::class, SaveDigestFrequency::class),
 ];
