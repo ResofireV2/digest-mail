@@ -2,7 +2,6 @@
 
 const _app=flarum.reg.get("core","forum/app");var app=t.n(_app);
 const _extend=flarum.reg.get("core","common/extend");
-const _SettingsPage=flarum.reg.get("core","forum/components/SettingsPage");var SettingsPage=t.n(_SettingsPage);
 
 var DigestFrequencySetting={
   oninit:function(vnode){
@@ -68,7 +67,7 @@ var DigestFrequencySetting={
 };
 
 app().initializers.add("resofire-digest-mail",function(){
-  (0,_extend.extend)(SettingsPage().prototype,"notificationsItems",function(items){
+  (0,_extend.extend)("flarum/forum/components/SettingsPage","notificationsItems",function(items){
     var user=this.user;
     if(!user||!app().session.user||user.id()!==app().session.user.id())return;
     items.add("digestFrequency",m(DigestFrequencySetting,{user:user}),50);
