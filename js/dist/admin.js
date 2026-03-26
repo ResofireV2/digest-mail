@@ -42,11 +42,12 @@ var INTEGRATION_SECTIONS={
   leaderboard:{key:"leaderboard",label:"Leaderboard",icon:"fas fa-trophy",      iconBg:"#3498db",iconColor:"#fff"},
   badges:     {key:"badges",     label:"Badges",     icon:"fas fa-award",       iconBg:"#8b5cf6",iconColor:"#fff"},
   pickem:     {key:"pickem",     label:"Pick'em",    icon:"fas fa-football-ball",iconBg:"#16a34a",iconColor:"#fff"},
-  gamepedia:  {key:"gamepedia",  label:"Gamepedia",  icon:"fas fa-gamepad",     iconBg:"#e85d04",iconColor:"#fff"},
-  favorites:  {key:"favorites",  label:"Favorites",  icon:"fas fa-heart",       iconBg:"#e11d48",iconColor:"#fff"},
+  gamepedia:          {key:"gamepedia",         label:"Gamepedia",          icon:"fas fa-gamepad",     iconBg:"#e85d04",iconColor:"#fff"},
+  resofireGamepedia:  {key:"resofireGamepedia", label:"Resofire Gamepedia", icon:"fas fa-gamepad",     iconBg:"#1a1a2e",iconColor:"#e94560"},
+  favorites:          {key:"favorites",         label:"Favorites",          icon:"fas fa-heart",       iconBg:"#e11d48",iconColor:"#fff"},
   awards:     {key:"awards",     label:"Awards",     icon:"fas fa-star",        iconBg:"#f59e0b",iconColor:"#fff"},
 };
-var DEFAULT_ORDER=["discussions","members","stats","leaderboard","badges","pickem","gamepedia","favorites","awards"];
+var DEFAULT_ORDER=["discussions","members","stats","leaderboard","badges","pickem","gamepedia","resofireGamepedia","favorites","awards"];
 
 var ExtIcon={view:function(vnode){var a=vnode.attrs;var sz=a.size||40;var fz=Math.round(sz*0.44);return m("div",{style:"width:"+sz+"px;height:"+sz+"px;border-radius:8px;background-color:"+(a.iconBg||"#6b7280")+";display:flex;align-items:center;justify-content:center;flex-shrink:0;"},m("i",{className:a.iconName||"fas fa-puzzle-piece",style:"color:"+(a.iconColor||"#fff")+";font-size:"+fz+"px;"}));}};
 

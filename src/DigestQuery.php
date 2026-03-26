@@ -530,13 +530,82 @@ class DigestQuery
     }
 
     // -------------------------------------------------------------------------
-    // Section 8 — Gamepedia (resofire/gamepedia)
+    // Section 8 — Gamepedia (huseyinfiliz/gamepedia)
+    // -------------------------------------------------------------------------
+
+    /**
+     * Build the Gamepedia section data for huseyinfiliz/gamepedia.
+     *
+     * Returns an array with:
+     *   enabled        bool
+     *   mostDiscussed  array of [ game, postCount, discussionCount ] — games
+     *                  with the most post activity (via game_discussions pivot)
+     *                  during the period, up to $limit entries.
+     *   newGames       array of game objects added during the period.
+     */
+    public function getGamepedia(Carbon $since, int $limit = 5): array
+    {
+        $extInstalled = $this->extensions->isEnabled('huseyinfiliz-gamepedia');
+        $raw          = $this->settings->get('resofire-digest-mail.enable_gamepedia');
+        $adminEnabled = $raw === null || $raw === '' ? true : (bool) $raw;
+
+        if (!$extInstalled || !$adminEnabled) {
+            return ['enabled' => false, 'mostDiscussed' => [], 'newGames' => []];
+        }
+
+        $prefix    = $this->db->getTablePrefix();
+        $since_str = $since->toDateTimeString();
+
+        $mostDiscussedRows = $this->db->select("
+            SELECT
+                g.id, g.name, g.slug, g.cover_image_id, g.genres, g.developer, g.release_date,
+                COUNT(DISTINCT p.id)  AS post_count,
+                COUNT(DISTINCT d.id)  AS discussion_count
+            FROM {$prefix}gamepedia_game_discussions AS gd
+            INNER JOIN {$prefix}gamepedia_games       AS g ON g.id = gd.game_id
+            INNER JOIN {$prefix}discussions            AS d ON d.id = gd.discussion_id
+            INNER JOIN {$prefix}posts                  AS p ON p.discussion_id = d.id
+            WHERE p.created_at >= ?
+              AND p.type       = 'comment'
+              AND p.hidden_at  IS NULL
+              AND d.hidden_at  IS NULL
+            GROUP BY g.id, g.name, g.slug, g.cover_image_id, g.genres, g.developer, g.release_date
+            ORDER BY post_count DESC
+            LIMIT {$limit}
+        ", [$since_str]);
+        $mostDiscussedRows = collect($mostDiscussedRows);
+
+        $mostDiscussed = [];
+        foreach ($mostDiscussedRows as $row) {
+            $mostDiscussed[] = [
+                'game'            => $row,
+                'postCount'       => (int) $row->post_count,
+                'discussionCount' => (int) $row->discussion_count,
+            ];
+        }
+
+        $newGames = $this->db->table('gamepedia_games')
+            ->where('created_at', '>=', $since)
+            ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get(['id', 'name', 'slug', 'cover_image_id', 'genres', 'developer', 'release_date'])
+            ->all();
+
+        return [
+            'enabled'       => true,
+            'mostDiscussed' => $mostDiscussed,
+            'newGames'      => $newGames,
+        ];
+    }
+
+    // -------------------------------------------------------------------------
+    // Section 8b — Resofire Gamepedia (resofire/gamepedia)
     // -------------------------------------------------------------------------
 
     /**
      * Build the Gamepedia section data for resofire/gamepedia 2.x.
      *
-     * Schema used:
+     * Schema:
      *   gamepedia_games            — id, name, slug, cover_image_url, developer,
      *                                publisher, first_release_date, created_at
      *   gamepedia_discussion_game  — pivot: discussion_id, game_id, created_at
@@ -547,16 +616,13 @@ class DigestQuery
      *   enabled        bool
      *   mostDiscussed  array of [ game (stdClass), postCount, discussionCount,
      *                             genres (array of stdClass) ]
-     *                  — games with the most post activity this period
-     *   newGames       array of stdClass — games added during the period,
-     *                  each with genres eager-loaded
+     *   newGames       array of stdClass — each with genres array attached
      *   topGenres      array of [ genre (stdClass), gameCount, postCount ]
-     *                  — genres with the most active games this period
      */
-    public function getGamepedia(Carbon $since, int $limit = 5): array
+    public function getResofireGamepedia(Carbon $since, int $limit = 5): array
     {
         $extInstalled = $this->extensions->isEnabled('resofire-gamepedia');
-        $raw          = $this->settings->get('resofire-digest-mail.enable_gamepedia');
+        $raw          = $this->settings->get('resofire-digest-mail.enable_resofire_gamepedia');
         $adminEnabled = $raw === null || $raw === '' ? true : (bool) $raw;
 
         if (!$extInstalled || !$adminEnabled) {
@@ -567,8 +633,6 @@ class DigestQuery
         $since_str = $since->toDateTimeString();
 
         // ── Most discussed ────────────────────────────────────────────────────
-        // Join via gamepedia_discussion_game pivot (2.x schema).
-        // cover_image_url is now a full URL stored directly on the game row.
         $mostDiscussedRows = $this->db->select("
             SELECT
                 g.id, g.name, g.slug, g.cover_image_url, g.developer, g.publisher,
@@ -589,8 +653,7 @@ class DigestQuery
             LIMIT {$limit}
         ", [$since_str]);
 
-        // Eager-load genres for the most-discussed games in one query.
-        $mdIds = collect($mostDiscussedRows)->pluck('id')->all();
+        $mdIds      = collect($mostDiscussedRows)->pluck('id')->all();
         $mdGenreMap = $this->loadGenresForGames($mdIds);
 
         $mostDiscussed = [];
@@ -622,18 +685,17 @@ class DigestQuery
         }
 
         // ── Top genres ────────────────────────────────────────────────────────
-        // Rank genres by how many posts their games received this period.
         $topGenreRows = $this->db->select("
             SELECT
                 gr.id, gr.name, gr.slug,
-                COUNT(DISTINCT g.id)  AS game_count,
-                COUNT(DISTINCT p.id)  AS post_count
-            FROM {$prefix}gamepedia_genres            AS gr
-            INNER JOIN {$prefix}gamepedia_game_genre   AS gg ON gg.genre_id = gr.id
-            INNER JOIN {$prefix}gamepedia_games         AS g  ON g.id  = gg.game_id
+                COUNT(DISTINCT g.id) AS game_count,
+                COUNT(DISTINCT p.id) AS post_count
+            FROM {$prefix}gamepedia_genres              AS gr
+            INNER JOIN {$prefix}gamepedia_game_genre    AS gg ON gg.genre_id = gr.id
+            INNER JOIN {$prefix}gamepedia_games          AS g  ON g.id  = gg.game_id
             INNER JOIN {$prefix}gamepedia_discussion_game AS gd ON gd.game_id = g.id
-            INNER JOIN {$prefix}discussions              AS d  ON d.id  = gd.discussion_id
-            INNER JOIN {$prefix}posts                    AS p  ON p.discussion_id = d.id
+            INNER JOIN {$prefix}discussions               AS d  ON d.id  = gd.discussion_id
+            INNER JOIN {$prefix}posts                     AS p  ON p.discussion_id = d.id
             WHERE p.created_at >= ?
               AND p.type        = 'comment'
               AND p.hidden_at   IS NULL
@@ -661,7 +723,7 @@ class DigestQuery
     }
 
     /**
-     * Load genres for a set of game IDs.
+     * Load genres for a set of game IDs from resofire/gamepedia schema.
      * Returns a map of [ game_id => [ stdClass(id, name, slug), ... ] ].
      */
     private function loadGenresForGames(array $gameIds): array
@@ -1028,7 +1090,7 @@ class DigestQuery
      */
     public function getSectionOrder(): array
     {
-        $default = ['discussions', 'members', 'stats', 'leaderboard', 'badges', 'pickem', 'gamepedia', 'favorites', 'awards'];
+        $default = ['discussions', 'members', 'stats', 'leaderboard', 'badges', 'pickem', 'gamepedia', 'resofireGamepedia', 'favorites', 'awards'];
         $raw = $this->settings->get('resofire-digest-mail.section_order', '');
         if (!$raw) return $default;
         $decoded = json_decode($raw, true);
@@ -1106,7 +1168,8 @@ class DigestQuery
         $limitBadges      = (int) $this->settings->get('resofire-digest-mail.limit_badges',      5) ?: 5;
         $limitLeaderboard = (int) $this->settings->get('resofire-digest-mail.limit_leaderboard', 10) ?: 10;
         $limitPickem      = (int) $this->settings->get('resofire-digest-mail.limit_pickem',      5) ?: 5;
-        $limitGamepedia   = (int) $this->settings->get('resofire-digest-mail.limit_gamepedia',   5) ?: 5;
+        $limitGamepedia          = (int) $this->settings->get('resofire-digest-mail.limit_gamepedia',          5) ?: 5;
+        $limitResofireGamepedia  = (int) $this->settings->get('resofire-digest-mail.limit_resofire_gamepedia', 5) ?: 5;
         $limitFavorites   = (int) $this->settings->get('resofire-digest-mail.limit_favorites',   6);
 
         return [
@@ -1120,6 +1183,7 @@ class DigestQuery
             'leaderboard'        => $this->getLeaderboard($since, $limitLeaderboard),
             'pickem'             => $this->getPickem($since, $limitPickem),
             'gamepedia'          => $this->getGamepedia($since, $limitGamepedia),
+            'resofireGamepedia'  => $this->getResofireGamepedia($since, $limitResofireGamepedia),
             'awards'             => $this->getAwards(),
             'sectionOrder'       => $this->getSectionOrder(),
         ];
@@ -1164,6 +1228,7 @@ class DigestQuery
             leaderboard:        $shared['leaderboard'],
             pickem:             $shared['pickem'],
             gamepedia:          $shared['gamepedia'],
+            resofireGamepedia:  $shared['resofireGamepedia'],
             favorites:          $shared['favorites'],
             awards:             $shared['awards'],
             theme:              $theme,

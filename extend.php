@@ -179,11 +179,18 @@ return [
                                 'enabled' => false,
                             ],
                             'gamepedia' => [
-                                'enabled'  => $manager->isEnabled('resofire-gamepedia'),
+                                'enabled'  => $manager->isEnabled('huseyinfiliz-gamepedia'),
                                 'title'    => 'Gamepedia',
                                 'iconName' => 'fas fa-gamepad',
                                 'iconColor'=> '#ffffff',
                                 'iconBg'   => '#e85d04',
+                            ],
+                            'resofireGamepedia' => [
+                                'enabled'  => $manager->isEnabled('resofire-gamepedia'),
+                                'title'    => 'Resofire Gamepedia',
+                                'iconName' => 'fas fa-gamepad',
+                                'iconColor'=> '#ffffff',
+                                'iconBg'   => '#1a1a2e',
                             ],
                             'likes' => [
                                 'enabled' => $manager->isEnabled('flarum-likes'),
@@ -220,7 +227,9 @@ return [
     (new Extend\Settings())
         ->default('resofire-digest-mail.enable_badges',      '1')
         ->default('resofire-digest-mail.enable_leaderboard', '1')
-        ->default('resofire-digest-mail.enable_gamepedia',   '1')
+        ->default('resofire-digest-mail.enable_gamepedia',              '1')
+        ->default('resofire-digest-mail.enable_resofire_gamepedia',     '1')
+        ->default('resofire-digest-mail.limit_resofire_gamepedia',      '5')
         ->default('resofire-digest-mail.enable_reactions',   '1')
         ->default('resofire-digest-mail.enable_awards',      '1')
         ->default('resofire-digest-mail.limit_favorites',    '6')

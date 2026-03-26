@@ -62,7 +62,15 @@ class DigestContent
         public readonly array $pickem = [],
 
         /**
-         * Gamepedia section data (resofire/gamepedia 2.x).
+         * Gamepedia section data (huseyinfiliz/gamepedia).
+         *   enabled        bool
+         *   mostDiscussed  array of [ game, postCount, discussionCount ]
+         *   newGames       array of game objects added this period
+         */
+        public readonly array $gamepedia = [],
+
+        /**
+         * Resofire Gamepedia section data (resofire/gamepedia 2.x).
          *   enabled        bool
          *   mostDiscussed  array of [ game (stdClass with cover_image_url,
          *                             developer, publisher, first_release_date),
@@ -71,7 +79,7 @@ class DigestContent
          *   newGames       array of stdClass — each has genres array attached
          *   topGenres      array of [ genre (stdClass), gameCount, postCount ]
          */
-        public readonly array $gamepedia = [],
+        public readonly array $resofireGamepedia = [],
 
         /**
          * Favorite Discussions section data.

@@ -80,8 +80,14 @@
     $gpEnabled       = !empty($gp) && ($gp['enabled'] ?? false);
     $gpMostDiscussed = $gpEnabled ? ($gp['mostDiscussed'] ?? []) : [];
     $gpNewGames      = $gpEnabled ? ($gp['newGames']      ?? []) : [];
-    $gpTopGenres     = $gpEnabled ? ($gp['topGenres']     ?? []) : [];
     $gpForumUrl      = rtrim($forumUrl, '/') . '/gamepedia';
+
+    $rgp             = $content->resofireGamepedia ?? [];
+    $rgpEnabled      = !empty($rgp) && ($rgp['enabled'] ?? false);
+    $rgpMostDiscussed= $rgpEnabled ? ($rgp['mostDiscussed'] ?? []) : [];
+    $rgpNewGames     = $rgpEnabled ? ($rgp['newGames']      ?? []) : [];
+    $rgpTopGenres    = $rgpEnabled ? ($rgp['topGenres']     ?? []) : [];
+    $rgpForumUrl     = rtrim($forumUrl, '/') . '/gamepedia';
 
     $favEntries      = $content->favorites ?? [];
 
@@ -90,9 +96,14 @@
     $awAwards        = $awEnabled ? ($aw['awards'] ?? []) : [];
     $awForumUrl      = rtrim($forumUrl, '/') . '/awards';
 
-    // Gamepedia cover URL — new schema stores the full URL directly on the game row.
-    // Falls back gracefully if cover_image_url is absent.
-    $gpCoverUrl = function (mixed $game) : ?string {
+    // huseyinfiliz/gamepedia cover URL — built from IGDB cover_image_id
+    $gpCoverUrl = function (?string $imageId) : ?string {
+        if (!$imageId) return null;
+        return 'https://images.igdb.com/igdb/image/upload/t_cover_big/' . $imageId . '.jpg';
+    };
+
+    // resofire/gamepedia cover URL — stored directly as a full URL on the game row
+    $rgpCoverUrl = function (mixed $game) : ?string {
         return !empty($game->cover_image_url) ? $game->cover_image_url : null;
     };
 
@@ -697,8 +708,8 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
 @break
 
 @case('gamepedia')
-{{-- ── GAMEPEDIA ──────────────────────────────────────────────────────────── --}}
-@if ($gpEnabled && (!empty($gpMostDiscussed) || !empty($gpNewGames) || !empty($gpTopGenres)))
+{{-- ── GAMEPEDIA (huseyinfiliz/gamepedia) ────────────────────────────────── --}}
+@if ($gpEnabled && (!empty($gpMostDiscussed) || !empty($gpNewGames)))
 {!! $sectionDivider() !!}
 <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:36px;">
     <tr><td>{!! $sectionHeader('Gamepedia') !!}</td></tr>
@@ -715,8 +726,99 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
             @if ($gpMdCol % 3 === 0 && $gpMdCol > 0) </tr><tr> @endif
             @php
                 $game     = $entry['game'];
-                $coverUrl = $gpCoverUrl($game);
+                $coverUrl = $gpCoverUrl($game->cover_image_id ?? null);
                 $gameUrl  = rtrim($forumUrl, '/') . '/gamepedia/' . e($game->slug);
+            @endphp
+            <td width="33%" style="padding:5px; vertical-align:top;">
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:{{ $c['surface2'] }}; border:1px solid {{ $c['border'] }}; border-radius:10px; overflow:hidden;">
+                    <tr><td style="padding:0;">
+                        <a href="{{ $gameUrl }}" style="display:block; text-decoration:none;">
+                            @if ($coverUrl)
+                                <img src="{{ $coverUrl }}" alt="{{ e($game->name) }}" style="width:100%; height:auto; display:block;" />
+                            @else
+                                <div style="width:100%; padding-top:140%; background-color:{{ $c['surface2'] }};"></div>
+                            @endif
+                        </a>
+                    </td></tr>
+                    <tr><td style="padding:10px 10px 12px; text-align:center;">
+                        <div style="font-size:15px; font-weight:700; color:{{ $c['text'] }}; line-height:1.35; margin-bottom:3px;">{{ $game->name }}</div>
+                        <div style="font-size:11px; color:{{ $c['textMuted'] }};">{{ $entry['postCount'] }} {{ $entry['postCount'] === 1 ? 'post' : 'posts' }}</div>
+                    </td></tr>
+                </table>
+            </td>
+            @php $gpMdCol++; @endphp
+        @endforeach
+        </tr></table>
+    </td></tr>
+    @endif
+
+    {{-- New games --}}
+    @if (!empty($gpNewGames))
+    <tr><td style="padding:{{ !empty($gpMostDiscussed) ? '28px' : '0px' }} 0 16px;">
+        <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; text-align:center; color:{{ $c['textMuted'] }};">Newly Added</p>
+    </td></tr>
+    <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+        @php $gpNgCol = 0; @endphp
+        @foreach ($gpNewGames as $game)
+            @if ($gpNgCol % 3 === 0 && $gpNgCol > 0) </tr><tr> @endif
+            @php
+                $coverUrl = $gpCoverUrl($game->cover_image_id ?? null);
+                $gameUrl  = rtrim($forumUrl, '/') . '/gamepedia/' . e($game->slug);
+            @endphp
+            <td width="33%" style="padding:5px; vertical-align:top;">
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="background-color:{{ $c['surface2'] }}; border:1px solid {{ $c['border'] }}; border-radius:10px; overflow:hidden;">
+                    <tr><td style="padding:0;">
+                        <a href="{{ $gameUrl }}" style="display:block; text-decoration:none;">
+                            @if ($coverUrl)
+                                <img src="{{ $coverUrl }}" alt="{{ e($game->name) }}" style="width:100%; height:auto; display:block;" />
+                            @else
+                                <div style="width:100%; padding-top:140%; background-color:{{ $c['surface2'] }};"></div>
+                            @endif
+                        </a>
+                    </td></tr>
+                    <tr><td style="padding:10px 10px 12px; text-align:center;">
+                        <div style="font-size:15px; font-weight:700; color:{{ $c['text'] }}; line-height:1.35;">{{ $game->name }}</div>
+                    </td></tr>
+                </table>
+            </td>
+            @php $gpNgCol++; @endphp
+        @endforeach
+        </tr></table>
+    </td></tr>
+    @endif
+
+    {{-- CTA --}}
+    <tr><td style="padding-top:24px; text-align:center;">
+        <a href="{{ $gpForumUrl }}" style="display:inline-block; padding:11px 28px; background-color:{{ $primaryColor }}; color:#fff; font-size:14px; font-weight:500; text-decoration:none; border-radius:6px;">Browse Gamepedia</a>
+    </td></tr>
+
+</table>
+@endif
+{{-- /GAMEPEDIA --}}
+@break
+
+@case('resofireGamepedia')
+{{-- ── RESOFIRE GAMEPEDIA (resofire/gamepedia) ─────────────────────────────── --}}
+@if ($rgpEnabled && (!empty($rgpMostDiscussed) || !empty($rgpNewGames) || !empty($rgpTopGenres)))
+{!! $sectionDivider() !!}
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:36px;">
+    <tr><td>{!! $sectionHeader('Gamepedia') !!}</td></tr>
+
+    {{-- Most discussed --}}
+    @if (!empty($rgpMostDiscussed))
+    <tr><td style="padding-bottom:16px;">
+        <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; text-align:center; color:{{ $c['textMuted'] }};">Most Discussed This {{ ucfirst($periodWord) }}</p>
+    </td></tr>
+    <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+        @php $rgpMdCol = 0; @endphp
+        @foreach ($rgpMostDiscussed as $entry)
+            @if ($rgpMdCol % 3 === 0 && $rgpMdCol > 0) </tr><tr> @endif
+            @php
+                $game       = $entry['game'];
+                $coverUrl   = $rgpCoverUrl($game);
+                $gameUrl    = rtrim($forumUrl, '/') . '/gamepedia/' . e($game->slug);
                 $gameGenres = $entry['genres'] ?? [];
             @endphp
             <td width="33%" style="padding:5px; vertical-align:top;">
@@ -739,24 +841,24 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
                     </td></tr>
                 </table>
             </td>
-            @php $gpMdCol++; @endphp
+            @php $rgpMdCol++; @endphp
         @endforeach
         </tr></table>
     </td></tr>
     @endif
 
     {{-- New games --}}
-    @if (!empty($gpNewGames))
-    <tr><td style="padding:{{ !empty($gpMostDiscussed) ? '28px' : '0px' }} 0 16px;">
+    @if (!empty($rgpNewGames))
+    <tr><td style="padding:{{ !empty($rgpMostDiscussed) ? '28px' : '0px' }} 0 16px;">
         <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; text-align:center; color:{{ $c['textMuted'] }};">Newly Added</p>
     </td></tr>
     <tr><td>
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
-        @php $gpNgCol = 0; @endphp
-        @foreach ($gpNewGames as $game)
-            @if ($gpNgCol % 3 === 0 && $gpNgCol > 0) </tr><tr> @endif
+        @php $rgpNgCol = 0; @endphp
+        @foreach ($rgpNewGames as $game)
+            @if ($rgpNgCol % 3 === 0 && $rgpNgCol > 0) </tr><tr> @endif
             @php
-                $coverUrl   = $gpCoverUrl($game);
+                $coverUrl   = $rgpCoverUrl($game);
                 $gameUrl    = rtrim($forumUrl, '/') . '/gamepedia/' . e($game->slug);
                 $gameGenres = $game->genres ?? [];
             @endphp
@@ -779,24 +881,24 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
                     </td></tr>
                 </table>
             </td>
-            @php $gpNgCol++; @endphp
+            @php $rgpNgCol++; @endphp
         @endforeach
         </tr></table>
     </td></tr>
     @endif
 
     {{-- Top genres --}}
-    @if (!empty($gpTopGenres))
-    <tr><td style="padding:{{ (!empty($gpMostDiscussed) || !empty($gpNewGames)) ? '28px' : '0px' }} 0 16px;">
+    @if (!empty($rgpTopGenres))
+    <tr><td style="padding:{{ (!empty($rgpMostDiscussed) || !empty($rgpNewGames)) ? '28px' : '0px' }} 0 16px;">
         <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; text-align:center; color:{{ $c['textMuted'] }};">Top Genres This {{ ucfirst($periodWord) }}</p>
     </td></tr>
     <tr><td>
         <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
-        @foreach ($gpTopGenres as $i => $genreEntry)
+        @foreach ($rgpTopGenres as $i => $genreEntry)
             @php
-                $genre     = $genreEntry['genre'];
-                $genreUrl  = rtrim($forumUrl, '/') . '/gamepedia?genre=' . e($genre->slug);
-                $bg        = $i % 2 === 0 ? $c['surface'] : $c['surface2'];
+                $genre    = $genreEntry['genre'];
+                $genreUrl = rtrim($forumUrl, '/') . '/gamepedia?genre=' . e($genre->slug);
+                $bg       = $i % 2 === 0 ? $c['surface'] : $c['surface2'];
             @endphp
             <tr style="background:{{ $bg }};">
                 <td style="padding:10px 14px; font-size:14px; font-weight:600; color:{{ $c['text'] }};">
@@ -815,12 +917,12 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
 
     {{-- CTA --}}
     <tr><td style="padding-top:24px; text-align:center;">
-        <a href="{{ $gpForumUrl }}" style="display:inline-block; padding:11px 28px; background-color:{{ $primaryColor }}; color:#fff; font-size:14px; font-weight:500; text-decoration:none; border-radius:6px;">Browse Gamepedia</a>
+        <a href="{{ $rgpForumUrl }}" style="display:inline-block; padding:11px 28px; background-color:{{ $primaryColor }}; color:#fff; font-size:14px; font-weight:500; text-decoration:none; border-radius:6px;">Browse Gamepedia</a>
     </td></tr>
 
 </table>
 @endif
-{{-- /GAMEPEDIA --}}
+{{-- /RESOFIRE GAMEPEDIA --}}
 @break
 
 @case('favorites')
