@@ -313,12 +313,13 @@ var DigestOrderTab={
   activeSections:function(order){
     var exts=(app().forum.attribute("digestExtensions"))||{};
     var integrationEnabled={
-      leaderboard:getSettingVal("resofire-digest-mail.enable_leaderboard","1")==="1"&&!!(exts.leaderboard||{}).enabled,
-      badges:     getSettingVal("resofire-digest-mail.enable_badges","1")==="1"     &&!!(exts.badges||{}).enabled,
-      pickem:     getSettingVal("resofire-digest-mail.enable_pickem","1")==="1"     &&!!(exts.pickem||{}).enabled,
-      gamepedia:  getSettingVal("resofire-digest-mail.enable_gamepedia","1")==="1"  &&!!(exts.gamepedia||{}).enabled,
-      favorites:  (parseInt(getSettingVal("resofire-digest-mail.limit_favorites","6"),10)>0)&&(!!(exts.likes||{}).enabled||!!(exts.reactions||{}).enabled),
-      awards:     getSettingVal("resofire-digest-mail.enable_awards","1")==="1"     &&!!(exts.awards||{}).enabled,
+      leaderboard:       getSettingVal("resofire-digest-mail.enable_leaderboard","1")==="1"&&!!(exts.leaderboard||{}).enabled,
+      badges:            getSettingVal("resofire-digest-mail.enable_badges","1")==="1"     &&!!(exts.badges||{}).enabled,
+      pickem:            getSettingVal("resofire-digest-mail.enable_pickem","1")==="1"     &&!!(exts.pickem||{}).enabled,
+      gamepedia:         getSettingVal("resofire-digest-mail.enable_gamepedia","1")==="1"  &&!!(exts.gamepedia||{}).enabled,
+      resofireGamepedia: getSettingVal("resofire-digest-mail.enable_resofire_gamepedia","1")==="1"&&!!(exts.resofireGamepedia||{}).enabled,
+      favorites:         (parseInt(getSettingVal("resofire-digest-mail.limit_favorites","6"),10)>0)&&(!!(exts.likes||{}).enabled||!!(exts.reactions||{}).enabled),
+      awards:            getSettingVal("resofire-digest-mail.enable_awards","1")==="1"     &&!!(exts.awards||{}).enabled,
     };
     var allSections={};
     FIXED_SECTIONS.forEach(function(s){allSections[s.key]=s;});
