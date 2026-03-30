@@ -268,9 +268,9 @@ class SendDigestCommand extends Command
             $theme = $this->mailer->resolveTheme($user);
 
             $job = (new SendDigestJob($user, $frequency, $cacheKey, $since, $theme))
-                ->onQueue($queueName)
-                ->tries($this->jobTries())
-                ->backoff([30, 60, 120]);
+                ->onQueue($queueName);
+            $job->tries = $this->jobTries();
+            $job->backoff = [30, 60, 120];
 
             if ($delaySecs > 0) {
                 $job = $job->delay($delaySecs);

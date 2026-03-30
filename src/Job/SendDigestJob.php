@@ -42,18 +42,6 @@ class SendDigestJob extends AbstractJob
     /** Exponential backoff in seconds between retries. */
     public array $backoff = [30, 60, 120];
 
-    public function tries(int $tries): static
-    {
-        $this->tries = $tries;
-        return $this;
-    }
-
-    public function backoff(array $backoff): static
-    {
-        $this->backoff = $backoff;
-        return $this;
-    }
-
     public function __construct(
         private User   $user,
         private string $frequency,
@@ -61,7 +49,6 @@ class SendDigestJob extends AbstractJob
         private Carbon $since,
         private string $theme,
     ) {
-        parent::__construct();
     }
 
     /**
