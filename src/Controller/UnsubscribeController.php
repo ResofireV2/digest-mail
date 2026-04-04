@@ -7,6 +7,7 @@ use Flarum\Http\Controller\AbstractHtmlController;
 use Flarum\Http\UrlGenerator;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
+use Illuminate\Contracts\Support\Renderable;
 use Illuminate\Contracts\View\Factory as ViewFactory;
 use Illuminate\Support\Arr;
 use Laminas\Diactoros\Response\RedirectResponse;
@@ -76,7 +77,7 @@ class UnsubscribeController extends AbstractHtmlController
         return parent::handle($request);
     }
 
-    protected function render(Request $request)
+    protected function render(Request $request): Renderable|string
     {
         $params   = $request->getQueryParams();
         $rawToken = Arr::get($params, 'token', '');
