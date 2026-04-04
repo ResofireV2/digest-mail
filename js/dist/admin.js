@@ -630,6 +630,7 @@ var ServerTab={
     vnode.state.basePath=null;
     vnode.state.basePathLoaded=false;
     vnode.state.queueType="database";
+    vnode.state.redisSubMode="horizon";
     app().request({method:"GET",url:app().forum.attribute("apiUrl")+"/resofire/digest-mail/stats"})
       .then(function(d){
         vnode.state.basePath=(d&&d.base_path&&d.base_path.length)?d.base_path:null;
@@ -693,6 +694,7 @@ var ServerTab={
     var lineWorkers3  = "# Add one line per worker \u2014 e.g. 3 workers:\n"+lineWorker+"\n"+lineWorker+"\n"+lineWorker;
     var lineEnqueue   = "# Optional: pre-build jobs before the window opens (large forums only):\n50 12 * * * cd "+bp+" && php flarum digest:enqueue --frequency=daily --delay=600 >> /dev/null 2>&1";
     var supervisorConf= "[program:flarum-worker]\ncommand=php "+bp+"/flarum queue:work --queue="+qn+",default --tries="+tries+" --backoff=30\ndirectory="+bp+"\nautostart=true\nautorestart=true\nnumprocs=2\nstopwaitsecs=60\nuser=www-data\nredirect_stderr=true\nstdout_logfile="+bp+"/storage/logs/worker.log";
+    var horizonConf= "[program:horizon]\nprocess_name=%(program_name)s\ncommand=php "+bp+"/flarum horizon\nautostart=true\nautorestart=true\nuser=www-data\nredirect_stderr=true\nstdout_logfile="+bp+"/storage/logs/horizon.log\nstopwaitsecs=3600";
 
     // ---- queue type toggle --------------------------------------------------
     var toggleBtn=function(label,val){
@@ -712,70 +714,13 @@ var ServerTab={
         : m("span",{style:"font-size:11px;color:#f59e0b;margin-left:8px;"},"\u26a0\ufe0f path unavailable \u2014 replace /path/to/flarum manually");
 
     return m("div",null,
-      // ---- Queue Driver Warning --------------------------------------------
-      m("div",{className:"ExtensionPage-settings"},
-        m("div",{style:"max-width:660px;margin:0 auto;"},
-          m("div",{style:"display:flex;gap:14px;padding:18px 20px;border-radius:8px;background:#fef3c7;border:1px solid #f59e0b;margin-bottom:0;"},
-            m("div",{style:"font-size:24px;flex-shrink:0;line-height:1.3;"},"\u26a0\ufe0f"),
-            m("div",{style:"flex:1;min-width:0;"},
-              m("div",{style:"font-size:14px;font-weight:700;color:#92400e;margin-bottom:8px;"},"Queue Driver Warning"),
-              m("p",{style:"margin:0 0 10px;font-size:13px;color:#78350f;line-height:1.6;"},
-                "By default, Flarum uses the ",m("strong",null,"sync")," queue driver, which processes jobs during the web request rather than in the background. ",
-                "For this extension to work reliably, you should install ",m("strong",null,"blomstra/database-queue")," and configure a queue worker using the cron lines below. ",
-                "Without it, sending digests to more than a small number of subscribers will cause slow page loads, timeouts, or failures."
-              ),
-              m("div",{style:"font-size:13px;font-weight:700;color:#92400e;margin-bottom:6px;"},"In practice:"),
-              m("ul",{style:"margin:0;padding-left:20px;"},
-                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"Under ~50 subscribers")," \u2014 sync is fine, most shared hosts handle it without timeouts"),
-                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"50\u2013200 subscribers")," \u2014 you'll start seeing slow post responses, occasional timeouts"),
-                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:4px;line-height:1.5;"},m("strong",null,"200+ subscribers")," \u2014 sync will regularly timeout or exhaust memory on typical VPS hosting"),
-                m("li",{style:"font-size:13px;color:#78350f;margin-bottom:0;line-height:1.5;"},m("strong",null,"500+ subscribers")," \u2014 sync is essentially broken; posts will fail or appear to hang")
-              )
-            )
-          )
-        )
-      ),
-      // ---- How the Queue Works ---------------------------------------------
-      m("div",{className:"ExtensionPage-settings"},
-        m("div",{style:"max-width:660px;margin:0 auto;"},
-          sh("How the Queue Works"),
-          notice("\u2699\ufe0f","What happens when a digest runs",
-            m("div",null,
-              m("p",{style:"margin:0 0 8px;"},"When the scheduler fires, ",code("digest:send")," fetches the next batch of subscribers (up to the configured chunk size), pushes one job per subscriber onto the queue, and exits. The next minute it fires again for the next batch. Workers (running ",code("queue:work"),") drain the queue in parallel as jobs arrive."),
-              m("p",{style:"margin:0;"},"This means your forum stays responsive during large sends, failed emails retry automatically, and the process can be parallelised with multiple workers.")
-            ),
-            "#3b82f6"
-          ),
-          notice("\uD83D\uDCE6","Shared data caching",
-            m("div",null,
-              m("p",{style:"margin:0 0 8px;"},"Almost everything in the digest is identical for every subscriber \u2014 new discussions, hot discussions, new members, favorites, leaderboard, awards, pick'em, gamepedia, stats, and section order are all built once per frequency run and stored in Laravel's cache for 2 hours."),
-              m("p",{style:"margin:0;"},"The only per-user query is unread discussions. For 10,000 subscribers this means roughly 10,013 total DB queries instead of 100,000+.")
-            ),
-            "#10b981"
-          ),
-          notice("\uD83D\uDD04","Retries and backoff",
-            m("div",null,
-              m("p",{style:"margin:0 0 8px;"},"If a job fails (e.g. the mail server is temporarily unavailable), it is automatically retried up to the configured number of times. Retries use exponential backoff: 30 seconds, then 60 seconds, then 120 seconds between attempts."),
-              m("p",{style:"margin:0;"},"Permanently failed jobs land in your failed_jobs table. Inspect and retry them with ",code("php flarum queue:retry all"),".")
-            ),
-            "#f59e0b"
-          ),
-          notice("\uD83E\uDE9F","Window mode",
-            m("div",null,
-              m("p",{style:"margin:0 0 8px;"},"Set a send window (e.g. 1 a.m.\u20135 a.m.) instead of a single hour in the Settings tab. The scheduler fires every minute within the window and dispatches one chunk of users per minute until all subscribers are processed or the window closes."),
-              m("p",{style:"margin:0;"},"This spreads DB load over time, prevents spikes, and requires no extra cron entries. The extension tracks progress automatically and stops when done.")
-            ),
-            "#6366f1"
-          )
-        )
-      ),
       // ---- Queue Settings --------------------------------------------------
       m("div",{className:"ExtensionPage-settings"},
         m("div",{style:"max-width:660px;margin:0 auto;"},
           sh("Queue Settings"),
           m("div",{className:"Form-group",style:"margin-bottom:20px;"},
             m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},"Queue Name"),
-            m("p",{className:"helpText",style:"margin-bottom:6px;"},"The named queue digest jobs are pushed onto. Your ",code("queue:work")," cron must include this name. Default: ",code("digest"),"."),
+            m("p",{className:"helpText",style:"margin-bottom:6px;"},"The named queue digest jobs are pushed onto. Default: ",code("digest"),". If using the database queue, your ",code("queue:work")," cron must include this name. If using Horizon, this queue must be listed in your ",code("extend.php")," Horizon environment configuration."),
             m("div",{style:"display:flex;align-items:center;gap:8px;"},
               m("input",{className:"FormControl",type:"text",value:s.queueName,style:"width:200px;",
                 oninput:function(e){s.queueName=e.target.value;},
@@ -793,7 +738,7 @@ var ServerTab={
         m("div",{style:"max-width:660px;margin:0 auto;"},
           sh("Cron Setup"),
           notice("\u26a0\ufe0f","These lines must be added to your server's crontab",
-            ["They cannot be set from this panel. SSH into your server and run ",code("crontab -e")," to open the crontab editor, then paste the lines below. Lines 1 and 2 are required. Lines 3 and 4 are optional."],
+            ["They cannot be set from this panel. SSH into your server and run ",code("sudo crontab -u www-data -e")," to open the crontab editor for your web server user, then paste the lines shown for your queue backend below."],
             "#f59e0b"
           ),
           // Queue type toggle
@@ -806,71 +751,192 @@ var ServerTab={
           ),
           // ---- SYNC MODE --------------------------------------------------
           s.queueType==="sync"?m("div",null,
-            notice("✅","No special setup required for Sync",
+            notice("\u2705","No worker setup required for Sync",
               m("div",null,
-                m("p",{style:"margin:0 0 8px;"},"Flarum's default ",code("sync")," driver processes jobs inline during the web request. No cron worker, no Supervisor, and no queue backend is needed. The scheduler cron line below is still required so the extension knows when to send."),
-                m("p",{style:"margin:0;"},"Sync works fine for small forums. Once your subscriber count grows it will cause slow page loads and timeouts — see the Queue Driver Warning at the top of this page for thresholds.")
+                m("p",{style:"margin:0 0 8px;"},"Flarum's default ",code("sync")," driver processes jobs inline during the web request. No queue worker, no Supervisor, and no queue backend is needed. The scheduler cron line below is the only requirement."),
+                m("p",{style:"margin:0;"},"When the scheduler fires at your configured send time, ",code("digest:send")," runs, builds each email, and sends it directly in the same process.")
               ),
               "#10b981"
             ),
-            cronBlock("1. Flarum Scheduler — the only cron line you need",lineScheduler),
-            m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
-              "That's it. When the scheduler fires, ",code("digest:send")," runs, builds each email, and sends it directly in the same process. No separate worker step."
-            ),
-            notice("⚠️","When to switch away from Sync",
+            cronBlock("Flarum Scheduler \u2014 the only cron line you need",lineScheduler),
+            notice("\u26a0\ufe0f","Sync has limits \u2014 know when to upgrade",
               m("div",null,
-                m("p",{style:"margin:0 0 6px;"},"Switch to the Database Queue driver (",code("blomstra/database-queue"),") when:"),
-                m("ul",{style:"margin:0;padding-left:18px;"},
-                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},"You have more than ~50 digest subscribers"),
-                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},"You notice post submissions feeling slow around your digest send time"),
-                  m("li",{style:"margin-bottom:0;line-height:1.5;"},"You see timeout errors in your Flarum error log on send days")
-                )
+                m("ul",{style:"margin:0 0 10px;padding-left:18px;"},
+                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},m("strong",null,"Under ~50 subscribers")," \u2014 sync is fine, most servers handle it without issue"),
+                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},m("strong",null,"50\u2013200 subscribers")," \u2014 slow page responses, occasional timeouts"),
+                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},m("strong",null,"200+ subscribers")," \u2014 regular timeouts, memory exhaustion on typical VPS hosting"),
+                  m("li",{style:"margin-bottom:4px;line-height:1.5;"},m("strong",null,"500+ subscribers")," \u2014 effectively broken; posts will fail or appear to hang")
+                ),
+                m("p",{style:"margin:0 0 6px;"},"When you hit those limits, switch to Flarum\u2019s built-in database queue driver \u2014 no extension install required. Add this to your ",code("config.php"),":"),
+                m("pre",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);margin:0;line-height:1.7;"},
+                  "'queue' => [\n    'driver' => 'database',\n],"
+                ),
+                m("p",{style:"margin:8px 0 0;"},"Then switch to the ",m("strong",null,"Database Queue")," tab above for the correct cron setup.")
               ),
               "#f59e0b"
             )
           ):null,
           // ---- DATABASE MODE -----------------------------------------------
           s.queueType==="database"?m("div",null,
-            cronBlock("1. Flarum Scheduler \u2014 required for all extensions",lineScheduler),
-            cronBlock("2. Queue Worker",lineWorker),
+            notice("\u2139\ufe0f","Enable the database queue driver first",
+              m("div",null,
+                m("p",{style:"margin:0 0 6px;"},"Flarum 2.x includes a database queue driver built into core \u2014 no extension install required. Add this to your ",code("config.php")," in your Flarum root directory:"),
+                m("pre",{style:"background:var(--body-bg);border:1px solid var(--control-bg);border-radius:6px;padding:10px 14px;font-family:monospace;font-size:12px;color:var(--text-color);margin:0;line-height:1.7;"},
+                  "'queue' => [\n    'driver' => 'database',\n],"
+                ),
+                m("p",{style:"margin:8px 0 0;"},"Jobs are stored in your database and processed by a queue worker running via cron. Your forum stays responsive during sends \u2014 the web request dispatches jobs instantly and the worker drains them in the background.")
+              ),
+              "#3b82f6"
+            ),
+            cronBlock("1. Flarum Scheduler \u2014 required",lineScheduler),
+            cronBlock("2. Queue Worker \u2014 required",lineWorker),
             m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
-              code("--queue="+qn+",default")," processes digest jobs first, then other notifications. ",
+              code("--queue="+qn+",default")," processes digest jobs first, then other Flarum notifications. ",
               code("--max-time=55")," stops the worker cleanly before the next cron fires. ",
-              code("--tries="+tries)," and ",code("--backoff=30")," match your settings above."
+              code("--tries="+tries)," and ",code("--backoff=30")," match your retry settings above."
             ),
-            cronBlock("3. Optional \u2014 Multiple Parallel Workers (large forums)",lineWorkers3),
+            notice("\uD83D\uDD04","Retries and backoff",
+              m("div",null,
+                m("p",{style:"margin:0 0 8px;"},"If a job fails \u2014 for example if your mail server is temporarily unavailable \u2014 it is automatically retried up to the number of times configured in Queue Settings above. Retries use exponential backoff: 30 seconds, then 60 seconds, then 120 seconds between attempts."),
+                m("p",{style:"margin:0;"},"Permanently failed jobs land in your ",code("failed_jobs")," table. You can inspect and retry them with ",code("php flarum queue:retry all"),".")
+              ),
+              "#f59e0b"
+            ),
+            notice("\uD83E\uDE9F","Send window",
+              m("div",null,
+                m("p",{style:"margin:0 0 8px;"},"Instead of sending all emails at a single hour, you can set a send window \u2014 for example 1\u00a0a.m. to 5\u00a0a.m. \u2014 in the Settings tab. The scheduler dispatches one chunk of subscribers per minute throughout the window, spreading database load steadily over time instead of hitting everything at once."),
+                m("p",{style:"margin:0;"},"The extension tracks its own progress and stops automatically once all subscribers have been processed. No extra cron entries are needed.")
+              ),
+              "#6366f1"
+            ),
+            cronBlock("3. Optional \u2014 Multiple Parallel Workers (larger forums)",lineWorkers3),
             m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
-              "Add one cron line per worker. Each worker runs independently and pulls jobs off the shared queue. Start with 1\u20132 workers and add more only if your queue depth grows faster than workers drain it."
+              "Add one cron line per additional worker. Each worker runs independently and pulls jobs off the shared queue. Start with one or two workers and add more only if your queue depth grows faster than workers drain it."
             ),
-            cronBlock("4. Optional \u2014 Two-Phase Pre-Population (50,000+ forums only)",lineEnqueue),
-            m("p",{style:"margin:-8px 0 0;font-size:12px;color:var(--muted-color);"},
-              "Replace ",code("50 12")," with 10 minutes before your window start. Pre-populates the jobs table before workers start, eliminating first-minute construction overhead."
+            cronBlock("4. Optional \u2014 Two-Phase Pre-Population (50,000+ subscribers only)",lineEnqueue),
+            m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
+              "Pre-populates the queue with jobs before the send window opens so workers have no construction overhead when they start. Set this to fire 10 minutes before your configured send window start. For example, if your window starts at 2\u00a0a.m., set this to run at 1:50\u00a0a.m. The first number is the minute (50\u00a0=\u00a0:50) and the second is the hour in 24-hour format (1\u00a0=\u00a01\u00a0a.m.). Adjust both to match your setup."
+            ),
+            notice("\uD83D\uDCA1","When to consider upgrading to Redis\u00a0/\u00a0Valkey",
+              m("div",null,
+                m("p",{style:"margin:0;"},"The database queue is reliable and sufficient for most forums. Consider upgrading to Redis or Valkey with Horizon when you have 50,000+ subscribers and need higher throughput or real-time queue monitoring. Switch to the ",m("strong",null,"Redis / Valkey")," tab for setup instructions.")
+              ),
+              "#6366f1"
             )
           ):null,
           // ---- REDIS / VALKEY MODE -----------------------------------------
           s.queueType==="redis"?m("div",null,
-            cronBlock("1. Flarum Scheduler \u2014 required, unchanged for Redis",lineScheduler),
-            cronBlock("2. Queue Worker",lineWorker),
-            m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
-              "The cron worker setup is identical to the database queue. Redis is the backend — the commands you run are the same. ",
-              code("--max-time=55")," still works fine with Redis for digest mail: the worker connects, drains jobs for 55 seconds via ",code("BLPOP"),", then exits cleanly before the next cron tick."
-            ),
-            cronBlock("3. Optional \u2014 Two-Phase Pre-Population (50,000+ forums only)",lineEnqueue),
-            m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
-              "Replace ",code("50 12")," with 10 minutes before your window start. Works identically with Redis \u2014 jobs are pushed to the Redis list, workers drain them as usual."
-            ),
-            notice("\uD83D\uDCA1","Optional upgrade: Supervisor for persistent workers",
+            notice("\u2139\ufe0f","Redis\u00a0/\u00a0Valkey must already be installed and running on your server",
               m("div",null,
-                m("p",{style:"margin:0 0 8px;"},"For high-traffic forums where the ",code("default")," queue handles real-time notifications all day, you can replace the cron worker with a Supervisor daemon. Persistent workers use ",code("BLPOP")," to react in milliseconds rather than waiting for the next cron tick, and Supervisor restarts them automatically if they crash."),
-                m("p",{style:"margin:0 0 8px;"},"For digest mail alone this makes no practical difference \u2014 digests run once a day and either approach drains the queue at the same rate."),
-                m("p",{style:"margin:0;"},"If you do want Supervisor, save the config below to ",code("/etc/supervisor/conf.d/flarum-worker.conf")," and remove your ",code("queue:work")," cron line, then run: ",code("supervisorctl reread && supervisorctl update && supervisorctl start flarum-worker:*"))
+                m("p",{style:"margin:0;"},"This extension does not cover Redis or Valkey installation. Once your Redis or Valkey server is running and ",code("fof/redis")," is installed and configured, choose your worker approach below.")
               ),
-              "#6366f1"
+              "#3b82f6"
             ),
-            cronBlock("Supervisor Config \u2014 optional, replaces the queue:work cron line",supervisorConf),
-            m("p",{style:"margin:-8px 0 0;font-size:12px;color:var(--muted-color);"},
-              "Adjust ",code("numprocs")," to match your worker count and ",code("user")," to your web server user (",code("www-data"),", ",code("nginx"),", or ",code("apache")," depending on your setup)."
-            )
+            m("div",{style:"display:flex;align-items:center;gap:8px;margin-bottom:20px;"},
+              m("span",{style:"font-size:12px;font-weight:600;color:var(--muted-color);margin-right:4px;"},"Worker approach:"),
+              (function(){
+                var subActive=s.redisSubMode==="cron";
+                return m("button",{
+                  style:"padding:6px 18px;font-size:12px;font-weight:600;border:1px solid var(--primary-color,#4f46e5);border-radius:4px;cursor:pointer;"+(subActive?"background:var(--primary-color,#4f46e5);color:#fff;":"background:transparent;color:var(--primary-color,#4f46e5);"),
+                  onclick:function(){s.redisSubMode="cron";m.redraw();}
+                },"Cron-based");
+              })(),
+              (function(){
+                var subActive=s.redisSubMode==="horizon";
+                return m("button",{
+                  style:"padding:6px 18px;font-size:12px;font-weight:600;border:1px solid var(--primary-color,#4f46e5);border-radius:4px;cursor:pointer;"+(subActive?"background:var(--primary-color,#4f46e5);color:#fff;":"background:transparent;color:var(--primary-color,#4f46e5);"),
+                  onclick:function(){s.redisSubMode="horizon";m.redraw();}
+                },"Horizon + Supervisor (recommended)");
+              })()
+            ),
+            // ---- REDIS CRON SUB-MODE ----------------------------------------
+            s.redisSubMode==="cron"?m("div",null,
+              notice("\u2699\ufe0f","How this works",
+                m("div",null,
+                  m("p",{style:"margin:0;"},"The scheduler fires every minute via cron. When your configured send time arrives, ",code("digest:send")," dispatches jobs to Redis. A second cron worker runs every minute, connects to Redis, and drains jobs for up to 55 seconds before exiting cleanly. This approach requires no persistent processes or Supervisor.")
+                ),
+                "#3b82f6"
+              ),
+              cronBlock("1. Flarum Scheduler \u2014 required",lineScheduler),
+              cronBlock("2. Queue Worker \u2014 required",lineWorker),
+              m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
+                code("--queue="+qn+",default")," processes digest jobs first, then other Flarum notifications. ",
+                code("--max-time=55")," stops the worker cleanly before the next cron fires. The worker connects to Redis via ",code("BLPOP")," and drains jobs for the full 55 seconds before exiting."
+              ),
+              notice("\uD83D\uDD04","Retries and backoff",
+                m("div",null,
+                  m("p",{style:"margin:0 0 8px;"},"If a job fails, it is automatically retried up to the number of times configured in Queue Settings above, using exponential backoff: 30 seconds, then 60 seconds, then 120 seconds between attempts."),
+                  m("p",{style:"margin:0;"},"Permanently failed jobs land in your ",code("failed_jobs")," table. Inspect and retry them with ",code("php flarum queue:retry all"),".")
+                ),
+                "#f59e0b"
+              ),
+              notice("\uD83E\uDE9F","Send window",
+                m("div",null,
+                  m("p",{style:"margin:0 0 8px;"},"Set a send window in the Settings tab to spread sending across several hours. The scheduler dispatches one chunk per minute throughout the window, keeping server load low and steady."),
+                  m("p",{style:"margin:0;"},"The extension tracks progress automatically and stops once all subscribers are processed.")
+                ),
+                "#6366f1"
+              ),
+              cronBlock("3. Optional \u2014 Multiple Parallel Workers (larger forums)",lineWorkers3),
+              m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
+                "Add one cron line per additional worker. Each connects to Redis independently and pulls jobs from the shared queue. Start with one or two and add more only if needed."
+              ),
+              cronBlock("4. Optional \u2014 Two-Phase Pre-Population (50,000+ subscribers only)",lineEnqueue),
+              m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},
+                "Pre-populates the queue with jobs before the send window opens so workers have no construction overhead when they start. Set this to fire 10 minutes before your configured send window start. For example, if your window starts at 2\u00a0a.m., set this to run at 1:50\u00a0a.m. The first number is the minute (50\u00a0=\u00a0:50) and the second is the hour in 24-hour format (1\u00a0=\u00a01\u00a0a.m.). Adjust both to match your setup."
+              ),
+              notice("\uD83D\uDCA1","Consider upgrading to Horizon\u00a0+\u00a0Supervisor",
+                m("div",null,
+                  m("p",{style:"margin:0;"},"For high-traffic forums, Horizon gives you persistent workers, real-time queue monitoring, automatic scaling, and a built-in dashboard. Switch to the ",m("strong",null,"Horizon + Supervisor")," tab above for full setup instructions.")
+                ),
+                "#6366f1"
+              )
+            ):null,
+            // ---- REDIS HORIZON SUB-MODE -------------------------------------
+            s.redisSubMode==="horizon"?m("div",null,
+              notice("\u2705","Horizon is the recommended approach for Redis\u00a0/\u00a0Valkey",
+                m("div",null,
+                  m("p",{style:"margin:0;"},"Horizon runs as a persistent background process managed by Supervisor. It watches your queues continuously, processes jobs as they arrive, scales workers automatically, and provides a real-time dashboard at ",code("/admin/horizon"),". Unlike cron-based workers, Horizon never misses a job and never needs to be manually restarted.")
+                ),
+                "#10b981"
+              ),
+              sh("Step 1 \u2014 Install fof/horizon"),
+              m("p",{style:"margin:0 0 8px;font-size:13px;color:var(--muted-color);line-height:1.6;"},"Run this command from your Flarum root directory:"),
+              cronBlock("",("composer require fof/horizon")),
+              m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},"Then enable ",code("FoF Horizon")," in your Flarum admin panel under Extensions."),
+              sh("Step 2 \u2014 Configure extend.php"),
+              m("p",{style:"margin:0 0 8px;font-size:13px;color:var(--muted-color);line-height:1.6;"},"Add the following to your Flarum root ",code("extend.php"),". The ",code("digest")," queue must be listed here so Horizon processes digest jobs. The ",code("default")," queue handles all other Flarum notifications."),
+              cronBlock("extend.php",("<?php\n\nuse FoF\\Redis\\Extend\\Redis;\nuse FoF\\Horizon\\Extend\\Horizon;\n\nreturn [\n    new Redis([\n        'host'     => '127.0.0.1',\n        'password' => null,\n        'port'     => 6379,\n        'database' => 0,\n    ]),\n\n    (new Horizon)->environment([\n        'supervisor-1' => [\n            'connection' => 'redis',\n            'queue'      => ['"+qn+"', 'default'],\n            'balance'    => 'auto',\n            'processes'  => 4,\n            'tries'      => "+tries+",\n            'memory'     => 128,\n        ],\n    ]),\n];")),
+              sh("Step 3 \u2014 Configure Supervisor"),
+              m("p",{style:"margin:0 0 8px;font-size:13px;color:var(--muted-color);line-height:1.6;"},"Create the Horizon Supervisor config file at ",code("/etc/supervisor/conf.d/horizon.conf"),":"),
+              cronBlock("/etc/supervisor/conf.d/horizon.conf",horizonConf),
+              m("p",{style:"margin:-8px 0 8px;font-size:12px;color:var(--muted-color);"},"Adjust ",code("user")," to match your web server user (",code("www-data"),", ",code("nginx"),", or ",code("apache")," depending on your setup)."),
+              m("p",{style:"margin:0 0 8px;font-size:13px;color:var(--muted-color);line-height:1.6;"},"Then load and start Horizon:"),
+              cronBlock("",("sudo supervisorctl reread\nsudo supervisorctl update\nsudo supervisorctl start horizon\nsudo supervisorctl status")),
+              m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},"You should see ",code("horizon")," with status ",code("RUNNING"),"."),
+              sh("Step 4 \u2014 Cron Setup"),
+              notice("\u26a0\ufe0f","One cron line only \u2014 do not add a queue:work line",
+                m("div",null,
+                  m("p",{style:"margin:0 0 8px;"},"When using Horizon + Supervisor, Horizon is your persistent queue worker. It runs continuously and listens to the ",code(qn)," and ",code("default")," queues 24\u00a07. Adding a ",code("queue:work")," cron line on top would create competing workers and cause unpredictable behaviour."),
+                  m("p",{style:"margin:0;"},"The scheduler cron below is the only cron line you need.")
+                ),
+                "#f59e0b"
+              ),
+              cronBlock("Flarum Scheduler \u2014 the only cron line you need",lineScheduler),
+              sh("Step 5 \u2014 Verify"),
+              m("p",{style:"margin:0 0 16px;font-size:13px;color:var(--muted-color);line-height:1.6;"},"Visit your Horizon dashboard at ",code("/admin/horizon"),". You should see Horizon\u2019s status shown as ",m("strong",null,"Running")," and ",code("supervisor-1")," listed at the bottom of the dashboard showing the ",code(qn)," and ",code("default")," queues."),
+              notice("\uD83E\uDE9F","Send window",
+                m("div",null,
+                  m("p",{style:"margin:0 0 8px;"},"Set a send window in the Settings tab to spread sending across several hours. The scheduler dispatches one chunk per minute throughout the window, keeping server load low and steady. Horizon workers drain each chunk in parallel as it arrives."),
+                  m("p",{style:"margin:0;"},"The extension tracks progress automatically and stops once all subscribers are processed.")
+                ),
+                "#6366f1"
+              ),
+              cronBlock("Optional \u2014 Two-Phase Pre-Population (50,000+ subscribers only)",lineEnqueue),
+              m("p",{style:"margin:-8px 0 0;font-size:12px;color:var(--muted-color);"},
+                "Pre-populates the queue with jobs before the send window opens so Horizon workers have no construction overhead when they start. Set this to fire 10 minutes before your configured send window start. For example, if your window starts at 2\u00a0a.m., set this to run at 1:50\u00a0a.m. The first number is the minute (50\u00a0=\u00a0:50) and the second is the hour in 24-hour format (1\u00a0=\u00a01\u00a0a.m.). Adjust both to match your setup."
+              )
+            ):null
           ):null
         )
       ),
@@ -906,7 +972,7 @@ var ServerTab={
           ),
           m("div",{style:"margin-top:12px;padding:12px 16px;background:var(--control-bg);border-radius:8px;"},
             m("p",{style:"margin:0;font-size:12px;color:var(--muted-color);line-height:1.6;"},
-              "\uD83D\uDCA1 For 50,000+ member forums, consider switching from the database queue driver (",code("blomstra/database-queue"),") to Redis for significantly higher throughput. This requires server-level configuration and is outside the scope of this extension. Send history is retained automatically: 30 daily entries, 52 weekly, 24 monthly."
+              "\uD83D\uDCA1 For 50,000+ member forums, consider switching from the built-in database queue driver to Redis or Valkey with Horizon and Supervisor for significantly higher throughput and real-time monitoring. Switch to the Redis\u00a0/\u00a0Valkey tab in the Cron Setup section above for full setup instructions. Send history is retained automatically: 30 daily entries, 52 weekly, 24 monthly."
             )
           )
         )
