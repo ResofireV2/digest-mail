@@ -138,13 +138,10 @@ Live statistics pulled from your forum's database:
 
 ### Server Settings
 
-Everything related to how the extension uses your server, in one place:
+Everything related to how the extension uses your server, in one place. The page auto-detects your forum's installation path and generates ready-to-copy cron lines and config blocks using your actual server path.
 
-- **Queue Driver Warning** — an explanation of Flarum's default sync driver and what happens as your subscriber list grows
-- **How the Queue Works** — a plain-language explanation of background job processing, shared data caching, and automatic email retry behaviour
-- **Window Mode** — explains how the send window spreads load over time
 - **Queue Settings** — queue name, chunk size (subscribers dispatched per scheduler run), job delay, and maximum retry attempts
-- **Cron Setup** — ready-to-copy cron lines for the scheduler, queue worker, multiple parallel workers, and optional two-phase pre-population for very large forums
+- **Cron Setup** — tailored setup instructions for your chosen queue backend: Sync, Database Queue, or Redis/Valkey. Each tab shows only what is relevant to that setup, including retry and backoff behaviour, send window guidance, and optional two-phase pre-population for very large forums
 - **Recommended Settings by Forum Size** — a reference table covering 100 members through 100,000+ with suggested chunk size, worker count, and send mode for each tier
 
 ---
@@ -160,34 +157,35 @@ From the Settings tab, any admin can send a live digest email to any address imm
 ### Core requirements
 
 - PHP 8.1 or higher
-- Flarum 1.8 or higher
+- Flarum 2.0 or higher
 - A working outbound mail configuration in your Flarum admin panel (SMTP, Mailgun, Postmark, etc.)
-- A server cron job running every minute — this is the standard Flarum scheduler requirement shared by many other extensions
+- A server cron job running `schedule:run` every minute — this is the standard Flarum scheduler requirement shared by many other extensions
 
-### Queue driver — strongly recommended
+### Queue driver
 
-By default Flarum uses the **sync** queue driver, which processes sending jobs during the web request rather than in the background. This is fine for very small forums but causes increasingly serious problems as your subscriber list grows:
+By default Flarum uses the **sync** queue driver, which processes jobs during the web request rather than in the background. This is fine for very small forums but causes problems as your subscriber list grows:
 
 | Subscribers | What happens on sync |
 |---|---|
-| Under ~50 | Fine — most shared hosts handle it without issue |
+| Under ~50 | Fine — most servers handle it without issue |
 | 50–200 | Slow page responses, occasional timeouts |
 | 200+ | Regular timeouts, memory exhaustion on typical VPS hosting |
-| 500+ | Effectively broken — posts fail or appear to hang for other users |
+| 500+ | Effectively broken — posts fail or appear to hang |
 
-Install [`blomstra/database-queue`](https://github.com/blomstra/flarum-ext-database-queue) to enable proper background queue processing. This is the officially maintained queue driver for Flarum.
+**Flarum 2.x has a database queue driver built into core** — no extension install required. To enable it, add this to your `config.php`:
 
-```bash
-composer require blomstra/database-queue
+```php
+'queue' => [
+    'driver' => 'database',
+],
 ```
 
-Enable it in your Flarum admin panel — it handles all setup automatically.
+For larger forums, Redis or Valkey with Laravel Horizon and Supervisor is the most scalable option. See the **Server Settings** page in the admin panel for full setup instructions tailored to your chosen approach.
 
 ### Optional integrations
 
 | Extension | What it enables |
 |---|---|
-| `blomstra/database-queue` | Background queue processing — strongly recommended |
 | `huseyinfiliz/leaderboard` | Leaderboard section |
 | `fof/badges` | Badges section |
 | `huseyinfiliz/pickem` | Pick'em section |
@@ -212,29 +210,35 @@ Then enable the extension in your Flarum admin panel.
 
 ## Cron Setup
 
-Add these lines to your server's crontab (`crontab -e`). Replace `/path/to/flarum` with your forum's root directory — the folder that contains the `flarum` file.
+The only cron line required for all setups is the Flarum scheduler. Add it to your server's crontab by running `sudo crontab -u www-data -e` and pasting the line below. Replace `/path/to/flarum` with the actual path to your forum root — the folder that contains the `flarum` file.
 
-**Required — Flarum scheduler (needed by this and many other Flarum extensions):**
 ```
 * * * * * cd /path/to/flarum && php flarum schedule:run >> /dev/null 2>&1
 ```
 
-**Required for background processing — queue worker:**
+**If you are using the sync driver**, that is the only line you need.
+
+**If you are using the database queue driver**, add a second line for the queue worker:
+
 ```
 * * * * * cd /path/to/flarum && php flarum queue:work --queue=digest,default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1
 ```
 
-**Optional — multiple workers for larger forums (add one line per additional worker):**
-```
-* * * * * cd /path/to/flarum && php flarum queue:work --queue=digest,default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1
-* * * * * cd /path/to/flarum && php flarum queue:work --queue=digest,default --max-time=55 --tries=3 --backoff=30 >> /dev/null 2>&1
-```
+`--queue=digest,default` processes digest jobs first, then other Flarum notifications. `--max-time=55` stops the worker cleanly before the next cron fires. Add one additional worker line per parallel worker for larger forums.
 
-**Optional — two-phase pre-population for very large forums (50,000+ subscribers):**
+**If you are using Redis or Valkey with Horizon and Supervisor**, the scheduler cron line is the only line you need. Do not add a `queue:work` cron line — Horizon is your persistent worker and runs continuously under Supervisor. Adding a `queue:work` cron on top would create competing workers.
+
+The **Server Settings** page in the admin panel generates ready-to-copy cron lines and config blocks using your actual server path and current Queue Settings values.
+
+### Two-phase pre-population (50,000+ subscribers only)
+
+For very large forums, you can pre-populate the queue with jobs before the send window opens so workers have no construction overhead when they start. Add this cron line 10 minutes before your configured send window start. For example, if your window starts at 2 a.m., run this at 1:50 a.m.:
+
 ```
 50 1 * * * cd /path/to/flarum && php flarum digest:enqueue --frequency=daily --delay=600 >> /dev/null 2>&1
 ```
-Replace `50 1` with 10 minutes before your configured send window start hour.
+
+The first number is the minute (50 = :50) and the second is the hour in 24-hour format (1 = 1 a.m.). Adjust both to match your setup.
 
 ---
 
@@ -302,7 +306,7 @@ The extension is built for efficiency at any subscriber count.
 | 50,000–100,000 | 7,500 | 8 | 3–4 hour window |
 | 100,000+ | 10,000 | 10+ | 4+ hour window |
 
-For very large forums on high-traffic sites, consider a Redis-backed queue driver with Supervisor for higher throughput. This requires server-level configuration beyond the scope of this extension.
+For 50,000+ member forums, consider switching from the database queue driver to Redis or Valkey with Horizon and Supervisor for significantly higher throughput and real-time queue monitoring. The Server Settings page in the admin panel includes full step-by-step setup instructions for this configuration.
 
 ---
 
