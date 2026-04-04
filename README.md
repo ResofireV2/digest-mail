@@ -210,7 +210,12 @@ Then enable the extension in your Flarum admin panel.
 
 ## Cron Setup
 
-The only cron line required for all setups is the Flarum scheduler. Add it to your server's crontab by running `sudo crontab -u www-data -e` and pasting the line below. Replace `/path/to/flarum` with the actual path to your forum root — the folder that contains the `flarum` file.
+The only cron line required for all setups is the Flarum scheduler. Add it to your server's crontab by running `sudo crontab -u YOUR_WEB_USER -e`, replacing `YOUR_WEB_USER` with the user that owns your Flarum files. If you are unsure which user that is, run `ls -la /path/to/flarum` and check the owner column. Common values are:
+
+- **Ubuntu/Debian** with Nginx or Apache → `www-data`
+- **CentOS/RHEL** with Apache → `apache`
+- **CentOS/RHEL** with Nginx → `nginx`
+- **Shared hosting** → your hosting account username
 
 ```
 * * * * * cd /path/to/flarum && php flarum schedule:run >> /dev/null 2>&1
@@ -227,6 +232,8 @@ The only cron line required for all setups is the Flarum scheduler. Add it to yo
 `--queue=digest,default` processes digest jobs first, then other Flarum notifications. `--max-time=55` stops the worker cleanly before the next cron fires. Add one additional worker line per parallel worker for larger forums.
 
 **If you are using Redis or Valkey with Horizon and Supervisor**, the scheduler cron line is the only line you need. Do not add a `queue:work` cron line — Horizon is your persistent worker and runs continuously under Supervisor. Adding a `queue:work` cron on top would create competing workers.
+
+Adjust `user` to match the user that owns your Flarum files (`www-data`, `apache`, `nginx`, or your hosting account username depending on your setup).
 
 The **Server Settings** page in the admin panel generates ready-to-copy cron lines and config blocks using your actual server path and current Queue Settings values.
 

@@ -738,7 +738,15 @@ var ServerTab={
         m("div",{style:"max-width:660px;margin:0 auto;"},
           sh("Cron Setup"),
           notice("\u26a0\ufe0f","These lines must be added to your server's crontab",
-            ["They cannot be set from this panel. SSH into your server and run ",code("sudo crontab -u www-data -e")," to open the crontab editor for your web server user, then paste the lines shown for your queue backend below."],
+            m("div",null,
+              m("p",{style:"margin:0 0 8px;"},"They cannot be set from this panel. SSH into your server and run ",code("sudo crontab -u YOUR_WEB_USER -e"),", replacing ",code("YOUR_WEB_USER")," with the user that owns your Flarum files."),
+              m("ul",{style:"margin:0 0 8px;padding-left:18px;"},
+                m("li",{style:"margin-bottom:4px;line-height:1.5;"},m("strong",null,"Ubuntu/Debian")," (Nginx or Apache) \u2014 typically ",code("www-data")),
+                m("li",{style:"margin-bottom:4px;line-height:1.5;"},m("strong",null,"CentOS/RHEL")," with Apache \u2014 typically ",code("apache")),
+                m("li",{style:"margin-bottom:4px;line-height:1.5;"},m("strong",null,"CentOS/RHEL")," with Nginx \u2014 typically ",code("nginx")),
+                m("li",{style:"margin-bottom:0;line-height:1.5;"},m("strong",null,"Unsure?")," Run ",code("ls -la "+bp)," and check the owner column.")
+              )
+            ),
             "#f59e0b"
           ),
           // Queue type toggle
@@ -910,7 +918,7 @@ var ServerTab={
               sh("Step 3 \u2014 Configure Supervisor"),
               m("p",{style:"margin:0 0 8px;font-size:13px;color:var(--muted-color);line-height:1.6;"},"Create the Horizon Supervisor config file at ",code("/etc/supervisor/conf.d/horizon.conf"),":"),
               cronBlock("/etc/supervisor/conf.d/horizon.conf",horizonConf),
-              m("p",{style:"margin:-8px 0 8px;font-size:12px;color:var(--muted-color);"},"Adjust ",code("user")," to match your web server user (",code("www-data"),", ",code("nginx"),", or ",code("apache")," depending on your setup)."),
+              m("p",{style:"margin:-8px 0 8px;font-size:12px;color:var(--muted-color);"},"Adjust ",code("user")," to match the user that owns your Flarum files (",code("www-data"),", ",code("apache"),", ",code("nginx"),", or your hosting account username depending on your setup)."),
               m("p",{style:"margin:0 0 8px;font-size:13px;color:var(--muted-color);line-height:1.6;"},"Then load and start Horizon:"),
               cronBlock("",("sudo supervisorctl reread\nsudo supervisorctl update\nsudo supervisorctl start horizon\nsudo supervisorctl status")),
               m("p",{style:"margin:-8px 0 16px;font-size:12px;color:var(--muted-color);"},"You should see ",code("horizon")," with status ",code("RUNNING"),"."),
