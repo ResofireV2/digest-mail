@@ -5,6 +5,7 @@ namespace Resofire\DigestMail\Controller;
 use Resofire\DigestMail\Token\UnsubscribeToken;
 use Flarum\Http\Controller\AbstractHtmlController;
 use Flarum\Http\UrlGenerator;
+use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
 use Illuminate\Contracts\View\Factory as ViewFactory;
 use Illuminate\Support\Arr;
@@ -26,8 +27,9 @@ class UnsubscribeController extends AbstractHtmlController
     private const VALID_FREQUENCIES = ['daily', 'weekly', 'monthly'];
 
     public function __construct(
-        private ViewFactory  $view,
-        private UrlGenerator $url,
+        private ViewFactory                 $view,
+        private UrlGenerator                $url,
+        private SettingsRepositoryInterface $settings,
     ) {}
 
     /**
@@ -82,14 +84,16 @@ class UnsubscribeController extends AbstractHtmlController
 
         if ($saved) {
             return $this->view->make('resofire-digest-mail::unsubscribe-saved')
-                ->with('forumUrl', $this->url->to('forum')->base());
+                ->with('forumUrl',  $this->url->to('forum')->base())
+                ->with('settings',  $this->settings);
         }
 
         $token = UnsubscribeToken::findValid($rawToken);
 
         if ($token === null) {
             return $this->view->make('resofire-digest-mail::unsubscribe-invalid')
-                ->with('forumUrl', $this->url->to('forum')->base());
+                ->with('forumUrl',  $this->url->to('forum')->base())
+                ->with('settings',  $this->settings);
         }
 
         $user    = $token->user;
@@ -100,6 +104,7 @@ class UnsubscribeController extends AbstractHtmlController
             ->with('user',             $user)
             ->with('currentFrequency', $user->digest_frequency)
             ->with('token',            $rawToken)
-            ->with('postUrl',          $baseUrl);
+            ->with('postUrl',          $baseUrl)
+            ->with('settings',         $this->settings);
     }
 }
