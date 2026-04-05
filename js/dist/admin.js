@@ -153,6 +153,80 @@ var SelectSetting={
   view:function(vnode){var a=vnode.attrs;var s=vnode.state;return m("div",{className:"Form-group",style:"margin-bottom:20px;"},m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},a.label),a.help?m("p",{className:"helpText",style:"margin-bottom:6px;"},a.help):null,m("select",{className:"FormControl Select-input",value:s.value,style:"max-width:260px;padding-bottom:8px;height:auto;line-height:1.4;",onchange:function(e){s.value=e.target.value;saveSetting(a.settingKey,e.target.value);}},Object.keys(a.options).map(function(k){return m("option",{value:k,selected:s.value===k},a.options[k]);})));}
 };
 
+var OnboardingSection={
+  oninit:function(vnode){
+    vnode.state.mode=getSettingVal("resofire-digest-mail.onboarding_mode","none");
+    vnode.state.frequency=getSettingVal("resofire-digest-mail.onboarding_frequency","weekly");
+  },
+  saveMode:function(vnode,val){
+    vnode.state.mode=val;
+    saveSetting("resofire-digest-mail.onboarding_mode",val);
+    m.redraw();
+  },
+  saveFrequency:function(vnode,val){
+    vnode.state.frequency=val;
+    saveSetting("resofire-digest-mail.onboarding_frequency",val);
+  },
+  view:function(vnode){
+    var s=vnode.state;
+    var tr=function(k){return app().translator.trans(k);};
+    var modeOptions={
+      "none":        tr("resofire-digest-mail.admin.onboarding.mode_none"),
+      "auto_enroll": tr("resofire-digest-mail.admin.onboarding.mode_auto_enroll"),
+      "opt_in_modal":tr("resofire-digest-mail.admin.onboarding.mode_opt_in_modal"),
+    };
+    var freqOpts={};
+    var freqLabels={"daily":"Daily","weekly":"Weekly","monthly":"Monthly"};
+    ["daily","weekly","monthly"].forEach(function(f){
+      var enabled=app().data.settings["resofire-digest-mail.allow_"+f];
+      if(enabled==="1"||enabled===true||enabled===1)freqOpts[f]=freqLabels[f];
+    });
+    if(s.mode==="auto_enroll"&&freqOpts[s.frequency]===undefined){
+      var firstAvailable=Object.keys(freqOpts)[0];
+      if(firstAvailable&&firstAvailable!==s.frequency){
+        s.frequency=firstAvailable;
+        saveSetting("resofire-digest-mail.onboarding_frequency",firstAvailable);
+      }
+    }
+    return m("div",null,
+      m("div",{className:"Form-group",style:"margin-bottom:16px;"},
+        m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},
+          tr("resofire-digest-mail.admin.onboarding.mode_label")
+        ),
+        m("p",{className:"helpText",style:"margin-bottom:6px;"},
+          tr("resofire-digest-mail.admin.onboarding.mode_help")
+        ),
+        m("select",{
+          className:"FormControl Select-input",
+          value:s.mode,
+          style:"max-width:360px;padding-bottom:8px;height:auto;line-height:1.4;",
+          onchange:function(e){OnboardingSection.saveMode(vnode,e.target.value);}
+        },Object.keys(modeOptions).map(function(k){
+          return m("option",{value:k,selected:s.mode===k},modeOptions[k]);
+        }))
+      ),
+      s.mode==="auto_enroll"?m("div",{className:"Form-group",style:"margin-bottom:4px;"},
+        m("label",{className:"label",style:"font-weight:600;display:block;margin-bottom:4px;"},
+          tr("resofire-digest-mail.admin.onboarding.frequency_label")
+        ),
+        m("p",{className:"helpText",style:"margin-bottom:6px;"},
+          tr("resofire-digest-mail.admin.onboarding.frequency_help")
+        ),
+        Object.keys(freqOpts).length===0
+          ?m("p",{style:"font-size:13px;color:#dc2626;"},"No frequencies are currently enabled. Enable at least one frequency in User Frequency Options above.")
+          :m("select",{
+              className:"FormControl Select-input",
+              value:s.frequency,
+              style:"max-width:260px;padding-bottom:8px;height:auto;line-height:1.4;",
+              onchange:function(e){OnboardingSection.saveFrequency(vnode,e.target.value);}
+            },Object.keys(freqOpts).map(function(k){
+              return m("option",{value:k,selected:s.frequency===k},freqOpts[k]);
+            }))
+      ):null
+    );
+  }
+};
+
 var TokenCheckerSection={
   oninit:function(vnode){
     vnode.state.token="";
@@ -268,6 +342,10 @@ var SettingsTab={
         m(FrequencyToggle,{settingKey:"resofire-digest-mail.allow_daily",  defaultOn:false,emoji:"📅",iconBg:"#fef3c7",label:"Daily",  description:"Users can opt in to receive a digest every day. Best for high-traffic forums. Off by default."}),
         m(FrequencyToggle,{settingKey:"resofire-digest-mail.allow_weekly", defaultOn:true, emoji:"📆",iconBg:"#ede9fe",label:"Weekly", description:"Users can opt in to receive a weekly digest. Recommended for most forums."}),
         m(FrequencyToggle,{settingKey:"resofire-digest-mail.allow_monthly",defaultOn:true, emoji:"🗓️",iconBg:"#dbeafe",label:"Monthly",description:"Users can opt in to receive a monthly digest. Good for low-traffic or announcement-focused forums."})
+      )),
+      m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:600px;margin:0 auto;"},
+        sh(app().translator.trans("resofire-digest-mail.admin.onboarding.section_heading")),
+        m(OnboardingSection)
       )),
       m("div",{className:"ExtensionPage-settings"},m("div",{style:"max-width:600px;margin:0 auto;"},
         sh("Extension Integrations"),
