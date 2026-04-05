@@ -26,11 +26,12 @@ var DigestOptInModal=class extends(Modal()){
     }
 
     var buttons=["daily","weekly","monthly"].filter(function(f){return !!allowed[f];}).map(function(f){
-      return m("button",{
-        className:"Button Button--primary Button--block",
-        style:"margin-bottom:8px;",
-        onclick:function(e){e.preventDefault();choose(f);}
-      },app().translator.trans(freqLabels[f]));
+      return m("div",{style:"margin-bottom:8px;"},
+        m("button",{
+          className:"Button Button--primary Button--block",
+          onclick:function(e){e.preventDefault();choose(f);}
+        },app().translator.trans(freqLabels[f]))
+      );
     });
 
     return m("div",{className:"Modal-body",style:"padding:20px;"},
