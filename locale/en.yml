@@ -9,6 +9,10 @@ resofire-digest-mail:
       frequency_monthly: "Monthly"
       saved: "Saved"
       save_error: "Could not save your preference. Please try again."
+    onboarding:
+      modal_title: "Stay in the loop"
+      modal_body: "Get a periodic digest of the best discussions, new members, and what's been happening on the forum — delivered straight to your inbox."
+      modal_dismiss: "No thanks"
 
   admin:
     settings:
@@ -92,6 +96,3 @@ resofire-digest-mail:
       mode_opt_in_modal: "Show opt-in modal"
       frequency_label: "Auto-enroll frequency"
       frequency_help: "The digest frequency new users are automatically enrolled at. Only frequencies enabled in User Frequency Options above are available."
-      modal_title: "Stay in the loop"
-      modal_body: "Get a periodic digest of the best discussions, new members, and what's been happening on the forum — delivered straight to your inbox."
-      modal_dismiss: "No thanks"

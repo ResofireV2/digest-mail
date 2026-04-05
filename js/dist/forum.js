@@ -6,7 +6,7 @@ const _Modal=flarum.reg.get("core","common/components/Modal");var Modal=t.n(_Mod
 
 var DigestOptInModal=class extends(Modal()){
   className(){return "DigestOptInModal Modal--small";}
-  title(){return app().translator.trans("resofire-digest-mail.admin.onboarding.modal_title");}
+  title(){return app().translator.trans("resofire-digest-mail.forum.onboarding.modal_title");}
   content(){
     var self=this;
     var user=app().session.user;
@@ -34,13 +34,13 @@ var DigestOptInModal=class extends(Modal()){
     });
 
     return m("div",{className:"Modal-body",style:"padding:20px;"},
-      m("p",{style:"margin-bottom:16px;"},app().translator.trans("resofire-digest-mail.admin.onboarding.modal_body")),
+      m("p",{style:"margin-bottom:16px;"},app().translator.trans("resofire-digest-mail.forum.onboarding.modal_body")),
       buttons,
       m("button",{
         className:"Button Button--text",
         style:"display:block;width:100%;margin-top:8px;",
         onclick:function(e){e.preventDefault();dismiss();}
-      },app().translator.trans("resofire-digest-mail.admin.onboarding.modal_dismiss"))
+      },app().translator.trans("resofire-digest-mail.forum.onboarding.modal_dismiss"))
     );
   }
 };
