@@ -7,6 +7,22 @@ const _Modal=flarum.reg.get("core","common/components/Modal");var Modal=t.n(_Mod
 var DigestOptInModal=class extends(Modal()){
   className(){return "DigestOptInModal Modal--small";}
   title(){return app().translator.trans("resofire-digest-mail.forum.onboarding.modal_title");}
+
+  // Override hide() so closing via the X button also clears the flag.
+  // Without this, the X calls hide() directly and the flag stays set,
+  // causing the modal to reappear on every page load.
+  hide(){
+    var user=app().session.user;
+    if(user){
+      var prefs=user.preferences()||{};
+      if(prefs.digest_onboarding_pending){
+        prefs.digest_onboarding_pending=null;
+        user.save({preferences:prefs});
+      }
+    }
+    super.hide();
+  }
+
   content(){
     var self=this;
     var user=app().session.user;
@@ -26,17 +42,15 @@ var DigestOptInModal=class extends(Modal()){
     }
 
     var buttons=["daily","weekly","monthly"].filter(function(f){return !!allowed[f];}).map(function(f){
-      return m("div",{style:"margin-bottom:8px;"},
-        m("button",{
-          className:"Button Button--primary Button--block",
-          onclick:function(e){e.preventDefault();choose(f);}
-        },app().translator.trans(freqLabels[f]))
-      );
+      return m("button",{
+        className:"Button Button--primary",
+        onclick:function(e){e.preventDefault();choose(f);}
+      },app().translator.trans(freqLabels[f]));
     });
 
     return m("div",{className:"Modal-body",style:"padding:20px;"},
       m("p",{style:"margin-bottom:16px;"},app().translator.trans("resofire-digest-mail.forum.onboarding.modal_body")),
-      buttons,
+      m("div",{style:"display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"},buttons),
       m("button",{
         className:"Button Button--text",
         style:"display:block;width:100%;margin-top:8px;",
