@@ -2,6 +2,48 @@
 
 const _app=flarum.reg.get("core","forum/app");var app=t.n(_app);
 const _extend=flarum.reg.get("core","common/extend");
+const _Modal=flarum.reg.get("core","common/components/Modal");var Modal=t.n(_Modal);
+
+var DigestOptInModal=class extends(Modal()){
+  className(){return "DigestOptInModal Modal--small";}
+  title(){return app().translator.trans("resofire-digest-mail.admin.onboarding.modal_title");}
+  content(){
+    var self=this;
+    var user=app().session.user;
+    var allowed=app().forum.attribute("digestAllowedFrequencies")||{};
+    var freqLabels={"daily":"resofire-digest-mail.forum.settings.frequency_daily","weekly":"resofire-digest-mail.forum.settings.frequency_weekly","monthly":"resofire-digest-mail.forum.settings.frequency_monthly"};
+
+    function choose(frequency){
+      var prefs=user.preferences()||{};
+      prefs.digest_onboarding_pending=null;
+      user.save({digestFrequency:frequency,preferences:prefs}).then(function(){self.hide();}).catch(function(){self.hide();});
+    }
+
+    function dismiss(){
+      var prefs=user.preferences()||{};
+      prefs.digest_onboarding_pending=null;
+      user.save({digestFrequency:null,preferences:prefs}).then(function(){self.hide();}).catch(function(){self.hide();});
+    }
+
+    var buttons=["daily","weekly","monthly"].filter(function(f){return !!allowed[f];}).map(function(f){
+      return m("button",{
+        className:"Button Button--primary Button--block",
+        style:"margin-bottom:8px;",
+        onclick:function(e){e.preventDefault();choose(f);}
+      },app().translator.trans(freqLabels[f]));
+    });
+
+    return m("div",{className:"Modal-body",style:"padding:20px;"},
+      m("p",{style:"margin-bottom:16px;"},app().translator.trans("resofire-digest-mail.admin.onboarding.modal_body")),
+      buttons,
+      m("button",{
+        className:"Button Button--text",
+        style:"display:block;width:100%;margin-top:8px;",
+        onclick:function(e){e.preventDefault();dismiss();}
+      },app().translator.trans("resofire-digest-mail.admin.onboarding.modal_dismiss"))
+    );
+  }
+};
 
 var DigestFrequencySetting={
   oninit:function(vnode){
@@ -72,6 +114,21 @@ app().initializers.add("resofire-digest-mail",function(){
     if(!user||!app().session.user||user.id()!==app().session.user.id())return;
     items.add("digestFrequency",m(DigestFrequencySetting,{user:user}),50);
   });
+
+  // -------------------------------------------------------------------------
+  // Opt-in modal boot hook
+  //
+  // On every page load, if the current user has the digest_onboarding_pending
+  // preference set to true, open the DigestOptInModal. The modal clears the
+  // flag on any interaction so it never shows more than once.
+  // -------------------------------------------------------------------------
+  setTimeout(function(){
+    var user=app().session.user;
+    if(!user)return;
+    var prefs=user.preferences();
+    if(!prefs||prefs.digest_onboarding_pending!==true)return;
+    app().modal.show(DigestOptInModal);
+  },0);
 });
 
 })(),module.exports=o})();

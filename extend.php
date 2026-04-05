@@ -7,11 +7,13 @@ use Resofire\DigestMail\Api\Controller\SendTestDigestController;
 use Resofire\DigestMail\Console\SendDigestCommand;
 use Resofire\DigestMail\Console\EnqueueDigestCommand;
 use Resofire\DigestMail\Controller\UnsubscribeController;
+use Resofire\DigestMail\Listener\SetNewUserDigestPreference;
 use Flarum\Api\Context;
 use Flarum\Api\Resource;
 use Flarum\Api\Schema;
 use Flarum\Extend;
 use Flarum\Extension\ExtensionManager;
+use Flarum\User\Event\Activated;
 use Flarum\User\User;
 
 return [
@@ -28,6 +30,26 @@ return [
     // -------------------------------------------------------------------------
     (new Extend\View)
         ->namespace('resofire-digest-mail', __DIR__ . '/views'),
+
+    // -------------------------------------------------------------------------
+    // New user onboarding — event listener
+    //
+    // Fires when a user's account is activated (email verification or admin
+    // activation). Applies the configured onboarding mode: no-op, auto-enroll
+    // at a chosen frequency, or set a flag for the opt-in modal flow.
+    // -------------------------------------------------------------------------
+    (new Extend\Event)
+        ->listen(Activated::class, SetNewUserDigestPreference::class),
+
+    // -------------------------------------------------------------------------
+    // New user onboarding — preference key registration
+    //
+    // Registers digest_onboarding_pending in Flarum's User preferences system
+    // so that it is included in the preferences JSON returned to the forum JS.
+    // The boot hook reads this flag to decide whether to show the opt-in modal.
+    // -------------------------------------------------------------------------
+    (new Extend\User)
+        ->registerPreference('digest_onboarding_pending', null, false),
 
     // -------------------------------------------------------------------------
     // Translations
@@ -246,6 +268,8 @@ return [
         ->default('resofire-digest-mail.send_window_start',  '8')
         ->default('resofire-digest-mail.send_window_end',    '8')
         ->default('resofire-digest-mail.weekly_day',         '1')
-        ->default('resofire-digest-mail.monthly_day',        '1'),
+        ->default('resofire-digest-mail.monthly_day',        '1')
+        ->default('resofire-digest-mail.onboarding_mode',    'none')
+        ->default('resofire-digest-mail.onboarding_frequency', 'weekly'),
 
 ];
