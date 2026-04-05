@@ -50,7 +50,7 @@ var DigestOptInModal=class extends(Modal()){
 
     return m("div",{className:"Modal-body",style:"padding:20px;"},
       m("p",{style:"margin-bottom:16px;"},app().translator.trans("resofire-digest-mail.forum.onboarding.modal_body")),
-      m("div",{style:"display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;"},buttons),
+      m("div",{style:"display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px;justify-content:center;"},buttons),
       m("button",{
         className:"Button Button--text",
         style:"display:block;width:100%;margin-top:8px;",
