@@ -3,7 +3,7 @@
     $forumTitle = $settings->get('forum_title', 'Forum');
 @endphp
 
-@section('title', 'Invalid or Expired Link')
+@section('title', $translator->trans('resofire-digest-mail.unsubscribe_invalid.page_title'))
 
 @section('content')
 
@@ -42,16 +42,10 @@
 
 <div class="digest-card">
     <div class="icon">🔗</div>
-    <h2>This link is no longer valid</h2>
+    <h2>{{ $translator->trans('resofire-digest-mail.unsubscribe_invalid.heading') }}</h2>
+    <p>{{ $translator->trans('resofire-digest-mail.unsubscribe_invalid.body_expired') }}</p>
     <p>
-        This unsubscribe link has either expired (links are valid for 90 days)
-        or has already been used. A fresh link is included in every digest email
-        we send you.
-    </p>
-    <p>
-        To manage your digest preferences, sign in to
-        <a href="{{ $forumUrl }}">{{ $forumTitle }}</a>
-        and visit your notification settings.
+        {!! $translator->trans('resofire-digest-mail.unsubscribe_invalid.body_signin', ['{forum}' => '<a href="' . e($forumUrl) . '">' . e($forumTitle) . '</a>']) !!}
     </p>
 </div>
 

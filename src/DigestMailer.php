@@ -152,7 +152,10 @@ class DigestMailer
                 . '?token=' . urlencode($unsubscribeToken);
 
             $forumTitle  = $this->settings->get('forum_title', 'Forum');
-            $subject     = "{$forumTitle} — Your {$content->frequencyLabel()} Digest";
+            $subject     = $this->translator->trans(
+                'resofire-digest-mail.email.subject',
+                ['{forum}' => $forumTitle, '{frequency}' => $content->frequencyLabel()]
+            );
 
             $fromAddress = $this->settings->get('mail_from', 'noreply@' . parse_url($this->url->to('forum')->base(), PHP_URL_HOST));
             $fromName    = $this->settings->get('mail_from_name', $forumTitle);
@@ -168,6 +171,7 @@ class DigestMailer
                 'unsubscribeUrl' => $unsubscribeUrl,
                 'url'            => $this->url,
                 'darkColors'     => $darkColors,
+                'translator'     => $this->translator,
             ];
 
             $this->mailer->send(

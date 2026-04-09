@@ -5,6 +5,7 @@ namespace Resofire\DigestMail\Controller;
 use Resofire\DigestMail\Token\UnsubscribeToken;
 use Flarum\Http\Controller\AbstractHtmlController;
 use Flarum\Http\UrlGenerator;
+use Flarum\Locale\Translator;
 use Flarum\Settings\SettingsRepositoryInterface;
 use Flarum\User\User;
 use Illuminate\Contracts\Support\Renderable;
@@ -31,6 +32,7 @@ class UnsubscribeController extends AbstractHtmlController
         private ViewFactory                 $view,
         private UrlGenerator                $url,
         private SettingsRepositoryInterface $settings,
+        private Translator                  $translator,
     ) {}
 
     /**
@@ -85,16 +87,18 @@ class UnsubscribeController extends AbstractHtmlController
 
         if ($saved) {
             return $this->view->make('resofire-digest-mail::unsubscribe-saved')
-                ->with('forumUrl',  $this->url->to('forum')->base())
-                ->with('settings',  $this->settings);
+                ->with('forumUrl',    $this->url->to('forum')->base())
+                ->with('settings',    $this->settings)
+                ->with('translator',  $this->translator);
         }
 
         $token = UnsubscribeToken::findValid($rawToken);
 
         if ($token === null) {
             return $this->view->make('resofire-digest-mail::unsubscribe-invalid')
-                ->with('forumUrl',  $this->url->to('forum')->base())
-                ->with('settings',  $this->settings);
+                ->with('forumUrl',    $this->url->to('forum')->base())
+                ->with('settings',    $this->settings)
+                ->with('translator',  $this->translator);
         }
 
         $user    = $token->user;
@@ -106,6 +110,7 @@ class UnsubscribeController extends AbstractHtmlController
             ->with('currentFrequency', $user->digest_frequency)
             ->with('token',            $rawToken)
             ->with('postUrl',          $baseUrl)
-            ->with('settings',         $this->settings);
+            ->with('settings',         $this->settings)
+            ->with('translator',       $this->translator);
     }
 }

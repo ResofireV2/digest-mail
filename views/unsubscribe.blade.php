@@ -21,13 +21,13 @@
     $allowMonthly = $settings->get('resofire-digest-mail.allow_monthly', '1') === '1';
 
     $options = [];
-    if ($allowDaily)   $options[] = ['value' => 'daily',   'emoji' => '☀️', 'title' => 'Daily',   'desc' => 'One email per day with the latest activity.'];
-    if ($allowWeekly)  $options[] = ['value' => 'weekly',  'emoji' => '📅', 'title' => 'Weekly',  'desc' => 'A weekly roundup every ' . $weeklyDayLabel . '.'];
-    if ($allowMonthly) $options[] = ['value' => 'monthly', 'emoji' => '📆', 'title' => 'Monthly', 'desc' => 'A monthly summary on the ' . $monthlyDayLabel . ' of each month.'];
-    $options[] =                    ['value' => 'off',     'emoji' => '🔕', 'title' => 'Off',     'desc' => "Don't send me any digest emails.", 'off' => true];
+    if ($allowDaily)   $options[] = ['value' => 'daily',   'emoji' => '☀️', 'title' => $translator->trans('resofire-digest-mail.unsubscribe.daily_title'),   'desc' => $translator->trans('resofire-digest-mail.unsubscribe.daily_desc')];
+    if ($allowWeekly)  $options[] = ['value' => 'weekly',  'emoji' => '📅', 'title' => $translator->trans('resofire-digest-mail.unsubscribe.weekly_title'),  'desc' => $translator->trans('resofire-digest-mail.unsubscribe.weekly_desc', ['{day}' => $weeklyDayLabel])];
+    if ($allowMonthly) $options[] = ['value' => 'monthly', 'emoji' => '📆', 'title' => $translator->trans('resofire-digest-mail.unsubscribe.monthly_title'), 'desc' => $translator->trans('resofire-digest-mail.unsubscribe.monthly_desc', ['{day}' => $monthlyDayLabel])];
+    $options[] =                    ['value' => 'off',     'emoji' => '🔕', 'title' => $translator->trans('resofire-digest-mail.unsubscribe.off_title'),     'desc' => $translator->trans('resofire-digest-mail.unsubscribe.off_desc'), 'off' => true];
 @endphp
 
-@section('title', 'Email Digest Preferences')
+@section('title', $translator->trans('resofire-digest-mail.unsubscribe.page_title'))
 
 @section('content')
 
@@ -119,13 +119,11 @@
 
 <div class="digest-card">
 
-    <h2>📧 Email Digest Preferences</h2>
+    <h2>📧 {{ $translator->trans('resofire-digest-mail.unsubscribe.heading') }}</h2>
     <p class="subtitle">
-        Hi, <strong>{{ $user->display_name }}</strong>. Choose how often you'd
-        like to receive a digest of what's happening in
-        <strong>{{ $forumTitle }}</strong>.
+        {!! $translator->trans('resofire-digest-mail.unsubscribe.greeting', ['{name}' => '<strong>' . e($user->display_name) . '</strong>', '{forum}' => '<strong>' . e($forumTitle) . '</strong>']) !!}
     </p>
-    <p class="click-hint">👆 Click an option to save your preference instantly.</p>
+    <p class="click-hint">👆 {{ $translator->trans('resofire-digest-mail.unsubscribe.click_hint') }}</p>
 
     @foreach ($options as $option)
     <a href="{{ $postUrl }}{{ $option['value'] }}"
