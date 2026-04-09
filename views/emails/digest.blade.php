@@ -749,7 +749,6 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
         @endforeach
         </tr></table>
     </td></tr>
-    @endif
 
     {{-- New games --}}
     @if (!empty($gpNewGames))
@@ -805,7 +804,6 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
     <tr><td>{!! $sectionHeader($translator->trans('resofire-digest-mail.email.sections.gamepedia')) !!}</td></tr>
 
     {{-- Most discussed --}}
-    @if (!empty($rgpMostDiscussed))
     <tr><td style="padding-bottom:16px;">
         <p style="margin:0; font-size:12px; font-weight:600; letter-spacing:1px; text-transform:uppercase; text-align:center; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.resofire_gamepedia.most_discussed', ['{period}' => ucfirst($periodWord)]) }}</p>
     </td></tr>
@@ -844,7 +842,6 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
         @endforeach
         </tr></table>
     </td></tr>
-    @endif
 
     {{-- New games --}}
     @if (!empty($rgpNewGames))
