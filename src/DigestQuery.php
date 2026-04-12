@@ -784,14 +784,22 @@ class DigestQuery
     // -------------------------------------------------------------------------
 
     /**
-     * Emoji map for fof/reactions identifiers we want to display.
-     * thumbsdown and confused are excluded from scoring and display.
+     * Emoji map for fof/reactions and resofire/reactions identifiers.
+     * Identifiers present in fof/reactions only: laughing.
+     * Identifiers present in resofire/reactions only: joy, astonished, sob, fire, eyes.
+     * Identifiers shared by both: thumbsup, heart, tada.
+     * Negative identifiers (thumbsdown, confused) are excluded from scoring and display.
      */
     private const REACTION_EMOJI = [
-        'thumbsup' => '👍',
-        'heart'    => '❤️',
-        'laughing' => '😄',
-        'tada'     => '🎉',
+        'thumbsup'   => '👍️',
+        'heart'      => '❤️',
+        'tada'       => '🎉',
+        'laughing'   => '😆',
+        'joy'        => '😂',
+        'astonished' => '😲',
+        'sob'        => '😭',
+        'fire'       => '🔥',
+        'eyes'       => '👀',
     ];
 
     /**
@@ -813,13 +821,15 @@ class DigestQuery
         $since_str = $since->toDateTimeString();
 
         $likesOn     = $this->extensions->isEnabled('flarum-likes');
-        $reactionsOn = $this->extensions->isEnabled('fof-reactions');
+        $reactionsOn = $this->extensions->isEnabled('fof-reactions') || $this->extensions->isEnabled('resofire-reactions');
         $rawEnable   = $this->settings->get('resofire-digest-mail.enable_reactions');
         $reactionsEnabled = $reactionsOn && ($rawEnable === null || $rawEnable === '' || $rawEnable === '1');
 
         // Neither extension active — nothing to show
         if (!$likesOn && !$reactionsOn) return [];
 
+        // thumbsdown and confused exist in fof/reactions; neither exists in resofire/reactions.
+        // The query safely returns an empty exclusion list if neither identifier is found.
         $excludedIdentifiers = ['thumbsdown', 'confused'];
 
         if ($reactionsEnabled) {

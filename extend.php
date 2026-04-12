@@ -218,7 +218,7 @@ return [
                                 'enabled' => $manager->isEnabled('flarum-likes'),
                             ],
                             'reactions' => [
-                                'enabled'  => $manager->isEnabled('fof-reactions'),
+                                'enabled'  => $manager->isEnabled('fof-reactions') || $manager->isEnabled('resofire-reactions'),
                                 'title'    => 'Reactions',
                                 'iconName' => 'fas fa-smile',
                                 'iconColor'=> '#ffffff',
