@@ -876,13 +876,12 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
             <tr>
                 <td width="36" style="padding:0 0 10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_rank') }}</td>
                 <td style="padding:0 0 10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_player') }}</td>
-                <td width="52" style="padding:0 0 10px; text-align:center; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_correct') }}</td>
-                <td width="52" style="padding:0 0 10px; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_pts') }}</td>
+                <td width="60" style="padding:0 0 10px; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_pts') }}</td>
                 <td width="68" style="padding:0 0 10px; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_accuracy') }}</td>
             </tr>
             @foreach ($pksLeaderboard as $entry)
             @php
-                $pksMedals   = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
+                $pksMedals    = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
                 $pksRankEmoji = $pksMedals[$entry['rank']] ?? ($entry['rank'] . '.');
                 $pksMovement  = $entry['movement'];
                 if ($pksMovement === null) {
@@ -902,12 +901,9 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
                         <td style="vertical-align:middle; padding-right:12px;">{!! $renderAvatar($entry['user'], 36, 14) !!}</td>
                         <td style="vertical-align:middle;">
                             <span class="t-main" style="font-size:15px; font-weight:500; color:{{ $c['text'] }}; display:block;">{{ $entry['user']->display_name }}</span>
-                            <span class="t-muted" style="font-size:12px; color:{{ $c['textMuted'] }};">{{ $entry['correctPicks'] }}/{{ $entry['totalPicks'] }} correct</span>
+                            <span class="t-muted" style="font-size:12px; color:{{ $c['textMuted'] }};">{{ $entry['correctPicks'] }}/{{ $entry['totalPicks'] }} correct &nbsp;&middot;&nbsp; {!! $pksMoveHtml !!}</span>
                         </td>
                     </tr></table>
-                </td>
-                <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:center;">
-                    {!! $pksMoveHtml !!}
                 </td>
                 <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:right;">
                     <span style="font-size:16px; font-weight:600; color:{{ $primaryColor }};">{{ $entry['totalPoints'] }}</span>
