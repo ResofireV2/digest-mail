@@ -76,6 +76,16 @@
     $pkLeaderboard = $pkEnabled ? ($pk['leaderboard']    ?? []) : [];
     $pkForumUrl    = rtrim($forumUrl, '/') . '/pickem';
 
+    $pks                 = $content->picks ?? [];
+    $pksEnabled          = !empty($pks) && ($pks['enabled'] ?? false);
+    $pksConfidenceMode   = $pksEnabled ? ($pks['confidenceMode']   ?? false) : false;
+    $pksCurrentWeek      = $pksEnabled ? ($pks['currentWeek']      ?? null)  : null;
+    $pksUpcoming         = $pksEnabled ? ($pks['upcomingEvents']   ?? [])    : [];
+    $pksResults          = $pksEnabled ? ($pks['recentResults']    ?? [])    : [];
+    $pksLeaderboard      = $pksEnabled ? ($pks['leaderboard']      ?? [])    : [];
+    $pksLeaderboardLabel = $pksEnabled ? ($pks['leaderboardLabel'] ?? '')    : '';
+    $pksForumUrl         = $pksEnabled ? ($pks['picksForumUrl']    ?? '')    : '';
+
     $gp              = $content->gamepedia ?? [];
     $gpEnabled       = !empty($gp) && ($gp['enabled'] ?? false);
     $gpMostDiscussed = $gpEnabled ? ($gp['mostDiscussed'] ?? []) : [];
@@ -287,7 +297,7 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
 </table>
 @endif
 
-@php $sectionOrder = $content->sectionOrder ?: ['discussions','members','stats','leaderboard','badges','pickem','gamepedia','favorites','awards']; @endphp
+@php $sectionOrder = $content->sectionOrder ?: ['discussions','members','stats','leaderboard','badges','pickem','picks','gamepedia','favorites','awards']; @endphp
 @foreach ($sectionOrder as $__section)
 @switch($__section)
 
@@ -705,6 +715,199 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
 </table>
 @endif
 {{-- /PICK'EM --}}
+@break
+
+@case('picks')
+{{-- ── CFB PICKS (resofire/picks) ────────────────────────────────────────── --}}
+@if ($pksEnabled && (!empty($pksUpcoming) || !empty($pksResults) || !empty($pksLeaderboard)))
+{!! $sectionDivider() !!}
+<table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-bottom:36px;">
+    <tr><td>{!! $sectionHeader($translator->trans('resofire-digest-mail.email.sections.picks')) !!}</td></tr>
+
+    {{-- Confidence mode notice --}}
+    @if ($pksConfidenceMode)
+    <tr><td style="padding-bottom:18px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+            <tr><td style="background-color:#fefce8; border:0.5px solid #fef08a; border-radius:8px; padding:10px 16px;">
+                <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+                    <td width="20" style="vertical-align:middle; padding-right:10px; font-size:16px; line-height:1;">&#9733;</td>
+                    <td style="vertical-align:middle; font-size:13px; color:#854d0e; line-height:1.5;">{{ $translator->trans('resofire-digest-mail.email.picks.confidence_note') }}</td>
+                </tr></table>
+            </td></tr>
+        </table>
+    </td></tr>
+    @endif
+
+    {{-- Upcoming games --}}
+    @if (!empty($pksUpcoming))
+    @php
+        $pksWeekName = null;
+        foreach ($pksUpcoming as $__ev) { if (!empty($__ev['weekName'])) { $pksWeekName = $__ev['weekName']; break; } }
+        $pksWeekIsOpen = $pksCurrentWeek && $pksCurrentWeek['isOpen'];
+    @endphp
+    <tr><td style="padding-bottom:12px;">
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+            <td style="vertical-align:middle;">
+                <p style="margin:0; font-size:13px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.upcoming_heading') }}@if ($pksWeekName) &nbsp;&mdash;&nbsp; {{ e($pksWeekName) }}@endif</p>
+            </td>
+            @if ($pksWeekIsOpen)
+            <td style="vertical-align:middle; text-align:right;">
+                <span style="font-size:10px; font-weight:600; letter-spacing:1px; text-transform:uppercase; background-color:#dcfce7; color:#166534; border-radius:4px; padding:3px 8px; white-space:nowrap;">{{ $translator->trans('resofire-digest-mail.email.picks.week_open') }}</span>
+            </td>
+            @endif
+        </tr></table>
+        <p class="t-muted" style="margin:6px 0 0; font-size:14px; color:{{ $c['textMuted'] }}; line-height:1.6;">{{ $translator->trans('resofire-digest-mail.email.picks.upcoming_note') }}</p>
+    </td></tr>
+    @foreach ($pksUpcoming as $ev)
+    @php
+        $pksHomeLogo = $ev['homeTeam']->logo_url ?? null;
+        $pksAwayLogo = $ev['awayTeam']->logo_url ?? null;
+        $pksHomeAbbr = e($ev['homeTeam']->abbreviation ?? $ev['homeTeam']->name);
+        $pksAwayAbbr = e($ev['awayTeam']->abbreviation ?? $ev['awayTeam']->name);
+        $pksHomeName = e($ev['homeTeam']->name);
+        $pksAwayName = e($ev['awayTeam']->name);
+    @endphp
+    <tr>
+        <td class="row-border" style="padding:20px 0; border-bottom:0.5px solid {{ $c['border'] }};">
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+                {{-- Home team --}}
+                <td style="vertical-align:middle; text-align:left; width:38%;">
+                    @if ($pksHomeLogo)
+                        <img src="{{ $pksHomeLogo }}" alt="{{ $pksHomeAbbr }}" width="64" height="64" style="width:64px; height:64px; object-fit:contain; display:block; border-radius:6px;" />
+                    @endif
+                    <span style="font-size:15px; font-weight:500; color:{{ $c['text'] }}; display:block; margin-top:6px;">{{ $pksHomeName }}</span>
+                </td>
+                {{-- vs chip --}}
+                <td style="vertical-align:middle; text-align:center; width:24%;">
+                    <span class="vs-bg" style="font-size:12px; font-weight:600; color:{{ $c['textMuted'] }}; background-color:{{ $c['surface2'] }}; border:0.5px solid {{ $c['border'] }}; border-radius:6px; padding:5px 14px;">vs</span>
+                    @if ($ev['neutralSite'])
+                    <div style="margin-top:6px;">
+                        <span style="font-size:10px; font-weight:600; letter-spacing:0.8px; text-transform:uppercase; background-color:{{ $c['surface2'] }}; color:{{ $c['textMuted'] }}; border-radius:4px; padding:2px 7px;">{{ $translator->trans('resofire-digest-mail.email.picks.neutral_site') }}</span>
+                    </div>
+                    @endif
+                </td>
+                {{-- Away team --}}
+                <td style="vertical-align:middle; text-align:right; width:38%;">
+                    @if ($pksAwayLogo)
+                        <img src="{{ $pksAwayLogo }}" alt="{{ $pksAwayAbbr }}" width="64" height="64" style="width:64px; height:64px; object-fit:contain; display:block; border-radius:6px; margin-left:auto;" />
+                    @endif
+                    <span style="font-size:15px; font-weight:500; color:{{ $c['text'] }}; display:block; margin-top:6px; text-align:right;">{{ $pksAwayName }}</span>
+                </td>
+            </tr></table>
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation" style="margin-top:10px;"><tr>
+                <td class="t-muted" style="font-size:13px; color:{{ $c['textMuted'] }};">&#128197; {{ $ev['matchDate']->format('D, M j g:i A') }} UTC</td>
+                <td class="t-muted" style="font-size:13px; color:{{ $c['textMuted'] }}; text-align:right;">&#9200; Picks close {{ $ev['cutoff']->diffForHumans() }}</td>
+            </tr></table>
+        </td>
+    </tr>
+    @endforeach
+    <tr><td style="padding-top:22px; text-align:center;">
+        <a href="{{ $pksForumUrl }}" style="display:inline-block; padding:11px 28px; background-color:{{ $primaryColor }}; color:#fff; font-size:14px; font-weight:500; text-decoration:none; border-radius:6px;">{{ $translator->trans('resofire-digest-mail.email.picks.cta') }}</a>
+    </td></tr>
+    @endif
+
+    {{-- Recent results --}}
+    @if (!empty($pksResults))
+    <tr><td style="padding:{{ !empty($pksUpcoming) ? '32px' : '0px' }} 0 12px;">
+        <p style="margin:0; font-size:13px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.results_heading') }}</p>
+    </td></tr>
+    @foreach ($pksResults as $res)
+    @php
+        $pksHomeWon  = $res['result'] === 'home';
+        $pksAwayWon  = $res['result'] === 'away';
+        $pksResHomeLogo = $res['homeTeam']->logo_url ?? null;
+        $pksResAwayLogo = $res['awayTeam']->logo_url ?? null;
+        $pksResHomeAbbr = e($res['homeTeam']->abbreviation ?? $res['homeTeam']->name);
+        $pksResAwayAbbr = e($res['awayTeam']->abbreviation ?? $res['awayTeam']->name);
+    @endphp
+    <tr>
+        <td class="row-border" style="padding:20px 0; border-bottom:0.5px solid {{ $c['border'] }};">
+            <table width="100%" cellpadding="0" cellspacing="0" role="presentation"><tr>
+                {{-- Home team --}}
+                <td style="vertical-align:middle; text-align:left; width:35%;">
+                    @if ($pksResHomeLogo)
+                        <img src="{{ $pksResHomeLogo }}" alt="{{ $pksResHomeAbbr }}" width="56" height="56" style="width:56px; height:56px; object-fit:contain; display:block; border-radius:6px;" />
+                    @endif
+                    <span style="font-size:14px; font-weight:500; color:{{ $c['text'] }}; display:block; margin-top:6px;">{{ e($res['homeTeam']->name) }}</span>
+                    @if ($pksHomeWon)<div style="font-size:13px; margin-top:4px;">&#127942; <span style="color:#16a34a; font-weight:500;">{{ $translator->trans('resofire-digest-mail.email.picks.winner') }}</span></div>@endif
+                </td>
+                {{-- Score --}}
+                <td style="vertical-align:middle; text-align:center; width:30%;">
+                    <span class="score-bg" style="font-size:20px; font-weight:600; color:{{ $c['text'] }}; background-color:{{ $c['surface2'] }}; border:0.5px solid {{ $c['border'] }}; border-radius:8px; padding:6px 14px; white-space:nowrap; display:inline-block;">{{ $res['homeScore'] }} &ndash; {{ $res['awayScore'] }}</span>
+                </td>
+                {{-- Away team --}}
+                <td style="vertical-align:middle; text-align:right; width:35%;">
+                    @if ($pksResAwayLogo)
+                        <img src="{{ $pksResAwayLogo }}" alt="{{ $pksResAwayAbbr }}" width="56" height="56" style="width:56px; height:56px; object-fit:contain; display:block; border-radius:6px; margin-left:auto;" />
+                    @endif
+                    <span style="font-size:14px; font-weight:500; color:{{ $c['text'] }}; display:block; margin-top:6px; text-align:right;">{{ e($res['awayTeam']->name) }}</span>
+                    @if ($pksAwayWon)<div style="font-size:13px; margin-top:4px; text-align:right;">&#127942; <span style="color:#16a34a; font-weight:500;">{{ $translator->trans('resofire-digest-mail.email.picks.winner') }}</span></div>@endif
+                </td>
+            </tr></table>
+            <p class="t-muted" style="margin:8px 0 0; font-size:13px; color:{{ $c['textMuted'] }};">{{ $res['matchDate']->format('D, M j') }}</p>
+        </td>
+    </tr>
+    @endforeach
+    @endif
+
+    {{-- Picks leaderboard --}}
+    @if (!empty($pksLeaderboard))
+    <tr><td style="padding:{{ (!empty($pksUpcoming) || !empty($pksResults)) ? '32px' : '0px' }} 0 12px;">
+        <p style="margin:0; font-size:13px; font-weight:600; letter-spacing:1px; text-transform:uppercase; color:{{ $c['textMuted'] }};">{{ e($pksLeaderboardLabel) }}</p>
+    </td></tr>
+    <tr><td>
+        <table width="100%" cellpadding="0" cellspacing="0" role="presentation">
+            <tr>
+                <td width="36" style="padding:0 0 10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_rank') }}</td>
+                <td style="padding:0 0 10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_player') }}</td>
+                <td width="52" style="padding:0 0 10px; text-align:center; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_correct') }}</td>
+                <td width="52" style="padding:0 0 10px; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_pts') }}</td>
+                <td width="68" style="padding:0 0 10px; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_accuracy') }}</td>
+            </tr>
+            @foreach ($pksLeaderboard as $entry)
+            @php
+                $pksMedals   = [1 => '🥇', 2 => '🥈', 3 => '🥉'];
+                $pksRankEmoji = $pksMedals[$entry['rank']] ?? ($entry['rank'] . '.');
+                $pksMovement  = $entry['movement'];
+                if ($pksMovement === null) {
+                    $pksMoveHtml = '<span style="font-size:11px; font-weight:600; color:#2fa899;">&#9733; ' . $translator->trans('resofire-digest-mail.email.picks.move_new') . '</span>';
+                } elseif ($pksMovement > 0) {
+                    $pksMoveHtml = '<span style="font-size:11px; font-weight:600; color:#16a34a;">&#9650; ' . $translator->trans('resofire-digest-mail.email.picks.move_up', ['{n}' => $pksMovement]) . '</span>';
+                } elseif ($pksMovement < 0) {
+                    $pksMoveHtml = '<span style="font-size:11px; font-weight:600; color:#dc2626;">&#9660; ' . $translator->trans('resofire-digest-mail.email.picks.move_down', ['{n}' => abs($pksMovement)]) . '</span>';
+                } else {
+                    $pksMoveHtml = '<span style="font-size:11px; color:#9ca3af;">' . $translator->trans('resofire-digest-mail.email.picks.move_held') . '</span>';
+                }
+            @endphp
+            <tr>
+                <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; font-size:18px;">{{ $pksRankEmoji }}</td>
+                <td class="row-border" style="padding:14px 8px 14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle;">
+                    <table cellpadding="0" cellspacing="0" role="presentation"><tr>
+                        <td style="vertical-align:middle; padding-right:12px;">{!! $renderAvatar($entry['user'], 36, 14) !!}</td>
+                        <td style="vertical-align:middle;">
+                            <span class="t-main" style="font-size:15px; font-weight:500; color:{{ $c['text'] }}; display:block;">{{ $entry['user']->display_name }}</span>
+                            <span class="t-muted" style="font-size:12px; color:{{ $c['textMuted'] }};">{{ $entry['correctPicks'] }}/{{ $entry['totalPicks'] }} correct</span>
+                        </td>
+                    </tr></table>
+                </td>
+                <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:center;">
+                    {!! $pksMoveHtml !!}
+                </td>
+                <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:right;">
+                    <span style="font-size:16px; font-weight:600; color:{{ $primaryColor }};">{{ $entry['totalPoints'] }}</span>
+                </td>
+                <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:right;">
+                    <span class="t-muted" style="font-size:13px; color:{{ $c['textMuted'] }};">{{ $entry['accuracy'] }}%</span>
+                </td>
+            </tr>
+            @endforeach
+        </table>
+    </td></tr>
+    @endif
+
+</table>
+@endif
+{{-- /CFB PICKS --}}
 @break
 
 @case('gamepedia')

@@ -62,6 +62,20 @@ class DigestContent
         public readonly array $pickem = [],
 
         /**
+         * Picks (resofire/picks) section data.
+         *   enabled            bool
+         *   confidenceMode     bool — whether confidence ratings are active
+         *   leaderboardScope   string — 'week' | 'season' | 'alltime'
+         *   currentWeek        array|null — [ id, name, weekNumber, isOpen ] — open week, if any
+         *   upcomingEvents     array of [ id, homeTeam, awayTeam, matchDate, cutoff, neutralSite, weekName ]
+         *   recentResults      array of [ homeTeam, awayTeam, matchDate, homeScore, awayScore, result ]
+         *   leaderboard        array of [ rank, previousRank, movement, user, totalPoints, totalPicks, correctPicks, accuracy ]
+         *   leaderboardLabel   string — human-readable scope label for display (e.g. "Week 9" or "2024 Season")
+         *   picksForumUrl      string — full URL to the picks page
+         */
+        public readonly array $picks = [],
+
+        /**
          * Gamepedia section data (huseyinfiliz/gamepedia).
          *   enabled        bool
          *   mostDiscussed  array of [ game, postCount, discussionCount ]
@@ -132,6 +146,10 @@ class DigestContent
         // Pick'em: upcoming matches or recent results worth surfacing
         if (!empty($this->pickem['upcomingEvents'])
             || !empty($this->pickem['recentResults'])) return false;
+
+        // Picks (resofire/picks): upcoming matches or recent results worth surfacing
+        if (!empty($this->picks['upcomingEvents'])
+            || !empty($this->picks['recentResults'])) return false;
 
         return true;
     }

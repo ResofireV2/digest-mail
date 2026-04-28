@@ -42,12 +42,13 @@ var INTEGRATION_SECTIONS={
   leaderboard:{key:"leaderboard",label:"Leaderboard",icon:"fas fa-trophy",      iconBg:"#3498db",iconColor:"#fff"},
   badges:     {key:"badges",     label:"Badges",     icon:"fas fa-award",       iconBg:"#8b5cf6",iconColor:"#fff"},
   pickem:     {key:"pickem",     label:"Pick'em",    icon:"fas fa-football-ball",iconBg:"#16a34a",iconColor:"#fff"},
+  picks:      {key:"picks",      label:"CFB Picks",   icon:"fas fa-football",     iconBg:"#69c6b9",iconColor:"#1A2744"},
   gamepedia:          {key:"gamepedia",         label:"Gamepedia",          icon:"fas fa-gamepad",     iconBg:"#e85d04",iconColor:"#fff"},
   resofireGamepedia:  {key:"resofireGamepedia", label:"Resofire Gamepedia", icon:"fas fa-gamepad",     iconBg:"#1a1a2e",iconColor:"#e94560"},
   favorites:          {key:"favorites",         label:"Favorites",          icon:"fas fa-heart",       iconBg:"#e11d48",iconColor:"#fff"},
   awards:     {key:"awards",     label:"Awards",     icon:"fas fa-star",        iconBg:"#f59e0b",iconColor:"#fff"},
 };
-var DEFAULT_ORDER=["discussions","members","stats","leaderboard","badges","pickem","gamepedia","resofireGamepedia","favorites","awards"];
+var DEFAULT_ORDER=["discussions","members","stats","leaderboard","badges","pickem","picks","gamepedia","resofireGamepedia","favorites","awards"];
 
 var ExtIcon={view:function(vnode){var a=vnode.attrs;var sz=a.size||40;var fz=Math.round(sz*0.44);return m("div",{style:"width:"+sz+"px;height:"+sz+"px;border-radius:8px;background-color:"+(a.iconBg||"#6b7280")+";display:flex;align-items:center;justify-content:center;flex-shrink:0;"},m("i",{className:a.iconName||"fas fa-puzzle-piece",style:"color:"+(a.iconColor||"#fff")+";font-size:"+fz+"px;"}));}};
 
@@ -323,6 +324,8 @@ var SettingsTab={
         m(NumberSetting,{settingKey:"resofire-digest-mail.limit_leaderboard", min:3,max:20,label:tr("resofire-digest-mail.admin.settings.limit_leaderboard_label"), help:tr("resofire-digest-mail.admin.settings.limit_leaderboard_help")}),
         m(NumberSetting,{settingKey:"resofire-digest-mail.limit_badges",      min:3,max:20,label:tr("resofire-digest-mail.admin.settings.limit_badges_label"),      help:tr("resofire-digest-mail.admin.settings.limit_badges_help")}),
         m(NumberSetting,{settingKey:"resofire-digest-mail.limit_pickem",      min:3,max:20,label:tr("resofire-digest-mail.admin.settings.limit_pickem_label"),      help:tr("resofire-digest-mail.admin.settings.limit_pickem_help")}),
+        m(NumberSetting,{settingKey:"resofire-digest-mail.limit_picks",       min:3,max:20,label:tr("resofire-digest-mail.admin.settings.limit_picks_label"),       help:tr("resofire-digest-mail.admin.settings.limit_picks_help")}),
+        m(SelectSetting, {settingKey:"resofire-digest-mail.picks_leaderboard_scope",options:[{value:"alltime",label:tr("resofire-digest-mail.admin.settings.picks_leaderboard_scope_alltime")},{value:"season",label:tr("resofire-digest-mail.admin.settings.picks_leaderboard_scope_season")},{value:"week",label:tr("resofire-digest-mail.admin.settings.picks_leaderboard_scope_week")}],label:tr("resofire-digest-mail.admin.settings.picks_leaderboard_scope_label"),help:tr("resofire-digest-mail.admin.settings.picks_leaderboard_scope_help")}),
         m(NumberSetting,{settingKey:"resofire-digest-mail.limit_gamepedia",   min:3,max:20,label:tr("resofire-digest-mail.admin.settings.limit_gamepedia_label"),   help:tr("resofire-digest-mail.admin.settings.limit_gamepedia_help")}),
         !!(exts.resofireGamepedia||{}).enabled?m(NumberSetting,{settingKey:"resofire-digest-mail.limit_resofire_gamepedia",min:3,max:20,label:tr("resofire-digest-mail.admin.settings.limit_resofire_gamepedia_label"),help:tr("resofire-digest-mail.admin.settings.limit_resofire_gamepedia_help")}):null,
         (!!(exts.likes||{}).enabled||!!(exts.reactions||{}).enabled)?m(NumberSetting,{settingKey:"resofire-digest-mail.limit_favorites",min:0,max:20,label:tr("resofire-digest-mail.admin.settings.limit_favorites_label"),help:tr("resofire-digest-mail.admin.settings.limit_favorites_help")}):null,
@@ -353,6 +356,7 @@ var SettingsTab={
         m(IntegrationToggle,{settingKey:"resofire-digest-mail.enable_leaderboard",extData:exts.leaderboard||{},description:"Show the top members leaderboard in each digest, including rank changes, points earned during the period, and a biggest-mover callout.",installedNote:"huseyinfiliz/leaderboard is installed and active",notInstalledNote:"huseyinfiliz/leaderboard is not installed or is disabled"}),
         m(IntegrationToggle,{settingKey:"resofire-digest-mail.enable_badges",     extData:exts.badges||{},     description:"Show badges earned during the period, the most-awarded badge, and the rarest badge awarded.",                                          installedNote:"fof/badges is installed and active",              notInstalledNote:"fof/badges is not installed or is disabled"}),
         m(IntegrationToggle,{settingKey:"resofire-digest-mail.enable_pickem",     extData:exts.pickem||{},     description:"Show upcoming pick'em matches, recent results, and the pick'em leaderboard.",                                                          installedNote:"huseyinfiliz/pickem is installed and active",     notInstalledNote:"huseyinfiliz/pickem is not installed or is disabled"}),
+        m(IntegrationToggle,{settingKey:"resofire-digest-mail.enable_picks",      extData:exts.picks||{},      description:"Show upcoming CFB games, recent results, and the picks leaderboard. Supports confidence mode and week/season/all-time leaderboard scopes.", installedNote:"resofire/picks is installed and active",          notInstalledNote:"resofire/picks is not installed or is disabled"}),
         m(IntegrationToggle,{settingKey:"resofire-digest-mail.enable_gamepedia",  extData:exts.gamepedia||{},         description:"Show the most discussed game pages and newly added games from Gamepedia.",                                                              installedNote:"huseyinfiliz/gamepedia is installed and active",        notInstalledNote:"huseyinfiliz/gamepedia is not installed or is disabled"}),
         m(IntegrationToggle,{settingKey:"resofire-digest-mail.enable_resofire_gamepedia",extData:exts.resofireGamepedia||{},description:"Show the most discussed games, newly added games, and top genres from Resofire Gamepedia.",                                 installedNote:"resofire/gamepedia is installed and active",            notInstalledNote:"resofire/gamepedia is not installed or is disabled"}),
         m(IntegrationToggle,{settingKey:"resofire-digest-mail.enable_reactions",  extData:exts.reactions||{},  description:"Use fof/reactions data for the Favorite Discussions section. When enabled, shows a per-reaction emoji breakdown instead of a plain like count. Thumbsdown and Confused reactions are excluded from scoring.",installedNote:"fof/reactions is installed and active",notInstalledNote:"fof/reactions is not installed or is disabled"}),
@@ -394,6 +398,7 @@ var DigestOrderTab={
       leaderboard:       getSettingVal("resofire-digest-mail.enable_leaderboard","1")==="1"&&!!(exts.leaderboard||{}).enabled,
       badges:            getSettingVal("resofire-digest-mail.enable_badges","1")==="1"     &&!!(exts.badges||{}).enabled,
       pickem:            getSettingVal("resofire-digest-mail.enable_pickem","1")==="1"     &&!!(exts.pickem||{}).enabled,
+      picks:             getSettingVal("resofire-digest-mail.enable_picks","1")==="1"      &&!!(exts.picks||{}).enabled,
       gamepedia:         getSettingVal("resofire-digest-mail.enable_gamepedia","1")==="1"  &&!!(exts.gamepedia||{}).enabled,
       resofireGamepedia: getSettingVal("resofire-digest-mail.enable_resofire_gamepedia","1")==="1"&&!!(exts.resofireGamepedia||{}).enabled,
       favorites:         (parseInt(getSettingVal("resofire-digest-mail.limit_favorites","6"),10)>0)&&(!!(exts.likes||{}).enabled||!!(exts.reactions||{}).enabled),

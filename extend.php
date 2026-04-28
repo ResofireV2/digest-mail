@@ -194,6 +194,13 @@ return [
                                 'iconColor'       => '#ffffff',
                                 'iconBg'          => '#16a34a',
                             ],
+                            'picks' => [
+                                'enabled'         => $manager->isEnabled('resofire-picks'),
+                                'title'           => 'CFB Picks',
+                                'iconName'        => 'fas fa-football',
+                                'iconColor'       => '#ffffff',
+                                'iconBg'          => '#69c6b9',
+                            ],
                             'nightmode' => [
                                 'enabled' => false,
                             ],
@@ -249,6 +256,9 @@ return [
     (new Extend\Settings())
         ->default('resofire-digest-mail.enable_badges',      '1')
         ->default('resofire-digest-mail.enable_leaderboard', '1')
+        ->default('resofire-digest-mail.enable_picks',       '1')
+        ->default('resofire-digest-mail.limit_picks',        '5')
+        ->default('resofire-digest-mail.picks_leaderboard_scope', 'alltime')
         ->default('resofire-digest-mail.enable_gamepedia',              '1')
         ->default('resofire-digest-mail.enable_resofire_gamepedia',     '1')
         ->default('resofire-digest-mail.limit_resofire_gamepedia',      '5')
