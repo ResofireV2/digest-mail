@@ -760,8 +760,16 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
     </td></tr>
     @foreach ($pksUpcoming as $ev)
     @php
-        $pksHomeLogo = $ev['homeTeam']->logo_url ?? null;
-        $pksAwayLogo = $ev['awayTeam']->logo_url ?? null;
+        $pksHomeLogo = null;
+        $pksAwayLogo = null;
+        if (!empty($ev['homeTeam']->logo_path)) {
+            $__p = $ev['homeTeam']->logo_path;
+            $pksHomeLogo = (str_starts_with($__p,'http://')||str_starts_with($__p,'https://')) ? $__p : rtrim($forumUrl,'/').'/'.ltrim($__p,'/');
+        }
+        if (!empty($ev['awayTeam']->logo_path)) {
+            $__p = $ev['awayTeam']->logo_path;
+            $pksAwayLogo = (str_starts_with($__p,'http://')||str_starts_with($__p,'https://')) ? $__p : rtrim($forumUrl,'/').'/'.ltrim($__p,'/');
+        }
         $pksHomeAbbr = e($ev['homeTeam']->abbreviation ?? $ev['homeTeam']->name);
         $pksAwayAbbr = e($ev['awayTeam']->abbreviation ?? $ev['awayTeam']->name);
         $pksHomeName = e($ev['homeTeam']->name);
@@ -815,8 +823,16 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
     @php
         $pksHomeWon  = $res['result'] === 'home';
         $pksAwayWon  = $res['result'] === 'away';
-        $pksResHomeLogo = $res['homeTeam']->logo_url ?? null;
-        $pksResAwayLogo = $res['awayTeam']->logo_url ?? null;
+        $pksResHomeLogo = null;
+        $pksResAwayLogo = null;
+        if (!empty($res['homeTeam']->logo_path)) {
+            $__p = $res['homeTeam']->logo_path;
+            $pksResHomeLogo = (str_starts_with($__p,'http://')||str_starts_with($__p,'https://')) ? $__p : rtrim($forumUrl,'/').'/'.ltrim($__p,'/');
+        }
+        if (!empty($res['awayTeam']->logo_path)) {
+            $__p = $res['awayTeam']->logo_path;
+            $pksResAwayLogo = (str_starts_with($__p,'http://')||str_starts_with($__p,'https://')) ? $__p : rtrim($forumUrl,'/').'/'.ltrim($__p,'/');
+        }
         $pksResHomeAbbr = e($res['homeTeam']->abbreviation ?? $res['homeTeam']->name);
         $pksResAwayAbbr = e($res['awayTeam']->abbreviation ?? $res['awayTeam']->name);
     @endphp

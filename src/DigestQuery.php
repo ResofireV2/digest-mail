@@ -578,15 +578,6 @@ class DigestQuery
             $lbScope = 'alltime';
         }
 
-        // --- Resolve a stored logo path to a full URL ---
-        $resolveLogoUrl = function (?string $path) use ($baseUrl): ?string {
-            if (!$path) return null;
-            if (str_starts_with($path, 'http://') || str_starts_with($path, 'https://')) {
-                return $path;
-            }
-            return $baseUrl . '/' . ltrim($path, '/');
-        };
-
         // --- Find the current open week (if any) ---
         $currentWeek = null;
         $openWeekRow = $this->db->table('picks_weeks')
@@ -629,12 +620,7 @@ class DigestQuery
         $teams = $this->db->table('picks_teams')
             ->whereIn('id', $teamIds)
             ->get(['id', 'name', 'abbreviation', 'logo_path', 'logo_dark_path'])
-            ->keyBy('id')
-            ->map(function ($team) use ($resolveLogoUrl) {
-                $team->logo_url      = $resolveLogoUrl($team->logo_path);
-                $team->logo_dark_url = $resolveLogoUrl($team->logo_dark_path) ?? $team->logo_url;
-                return $team;
-            });
+            ->keyBy('id');
 
         // Batch-load week names for upcoming events
         $weekIds = collect($upcomingRows)->pluck('week_id')->unique()->filter()->values()->all();
