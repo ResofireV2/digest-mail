@@ -700,7 +700,7 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
                         </td>
                     </tr></table>
                 </td>
-                <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:right;">
+                <td class="row-border" style="padding:14px 8px 14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:right;">
                     <span style="font-size:16px; font-weight:600; color:{{ $primaryColor }};">{{ $entry['totalPoints'] }}</span>
                 </td>
                 <td class="row-border" style="padding:14px 0; border-bottom:0.5px solid {{ $c['border'] }}; vertical-align:middle; text-align:right;">
@@ -876,7 +876,7 @@ $discRow = function ($disc, string $metaHtml) use ($url, $c, $renderAvatar) {
             <tr>
                 <td width="36" style="padding:0 0 10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_rank') }}</td>
                 <td style="padding:0 0 10px; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_player') }}</td>
-                <td width="60" style="padding:0 0 10px; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_pts') }}</td>
+                <td width="60" style="padding:0 8px 10px 0; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_pts') }}</td>
                 <td width="68" style="padding:0 0 10px; text-align:right; font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:1px; color:{{ $c['textMuted'] }};">{{ $translator->trans('resofire-digest-mail.email.picks.col_accuracy') }}</td>
             </tr>
             @foreach ($pksLeaderboard as $entry)

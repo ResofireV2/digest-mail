@@ -173,7 +173,7 @@ resofire-digest-mail:
       col_rank: "#"
       col_player: "Player"
       col_pts: "Pts"
-      col_accuracy: "Accuracy"
+      col_accuracy: "Acc."
       move_up: "Up {n}"
       move_down: "Down {n}"
       move_held: "—"
